@@ -100,15 +100,96 @@ func (p SPHParticleSystem) Density(positions []V.Vec, density_field []float64) {
 	}
 }
 
-func (p SPHParticleSystem) Gradient(scalar []float64, vector_gradient []V.Vec) {
+//Gradient computes SPH Particle scalar gradient dependent on density field
+func (p SPHParticleSystem) Gradient(scalar []float64, densities []V.Vec, vector_gradient []V.Vec) {
+
+	for i := 0; i < len(scalar); i++ {
+		//For Each Particle Calculate Kernel Based Summation
+		samples := p.Smplr.GetSamples(i)
+		dens := densities[i]
+		F := float32(0.0)
+		p.Kern.Adjust(dens / p.Particle.D0())
+		mass := p.Particle.Mass()
+		mq2 := -mass * mass
+		accumGrad := V.Vec{}
+		//Conduct inner loop
+		for j := 0; j < len(samples); j++ {
+			jIndex := samples[j]
+			if jIndex != i {
+				jDensity := densities[samples[j]]
+				dir := V.Sub(positions[samples[j]], positions[i])
+				dist := V.Mag(dir)
+				dir = V.Norm(dir) //Normalize
+				grad := fluid.Kern.Gradient(dist, dir)
+				F = ((scalar[i] / (dens * dens)) + (scalar[samples[j]] / (jDensity * jDensity)))
+				accumGrad = V.Add(accumGrad, V.Scale(grad, -F))
+			}
+			//End Inner Loop
+		}
+		V.Add(vector_gradient[i], V.Scl(accumGrad, mq2))
+	} //End Particle Loop
 
 }
-func (p SPHParticleSystem) Div(vector_field []V.Vec, div_field []float64) {
+
+//Div computes vector field divergence
+func (p SPHParticleSystem) Div(vector_field []V.Vec, densities []float64, div_field []float64) {
+	for i := 0; i < len(scalar); i++ {
+		//For Each Particle Calculate Kernel Based Summation
+		samples := p.Smplr.GetSamples(i)
+		dens := densities[i]
+		F := float32(0.0)
+		p.Kern.Adjust(dens / p.Particle.D0())
+		mass := p.Particle.Mass()
+		mq2 := -mass * mass
+		accumGrad := V.Vec{}
+		//Conduct inner loop
+		for j := 0; j < len(samples); j++ {
+			jIndex := samples[j]
+			if jIndex != i {
+				jDensity := densities[samples[j]]
+				dir := V.Sub(positions[samples[j]], positions[i])
+				dist := V.Mag(dir)
+				dir = V.Norm(dir) //Normalize
+				grad := fluid.Kern.Gradient(dist, dir)
+				F = ((scalar[i] / (dens * dens)) + (scalar[samples[j]] / (jDensity * jDensity)))
+				accumGrad = V.Add(accumGrad, V.Scale(grad, -F))
+			}
+			//End Inner Loop
+		}
+		V.Add(vector_field[i], V.Scl(accumGrad, mq2))
+	} //End Particle Loop
 
 }
-func (p SPHParticleSystem) Laplacian(vector_field []V.Vec, force_field []V.Vec) {
 
+//Laplacian computes vector field laplacian
+func (p SPHParticleSystem) Laplacian(vector_field []V.Vec, densities []float64, force_field []V.Vec) {
+	for i := 0; i < len(scalar); i++ {
+		//For Each Particle Calculate Kernel Based Summation
+		samples := p.Smplr.GetSamples(i)
+		dens := densities[i]
+		F := float32(0.0)
+		p.Kern.Adjust(dens / p.Particle.D0())
+		mass := p.Particle.Mass()
+		mq2 := -mass * mass
+		accumGrad := V.Vec{}
+		//Conduct inner loop
+		for j := 0; j < len(samples); j++ {
+			jIndex := samples[j]
+			if jIndex != i {
+				jDensity := densities[samples[j]]
+				dir := V.Sub(positions[samples[j]], positions[i])
+				dist := V.Mag(dir)
+				dir = V.Norm(dir) //Normalize
+				grad := fluid.Kern.Gradient(dist, dir)
+				F = ((scalar[i] / (dens * dens)) + (scalar[samples[j]] / (jDensity * jDensity)))
+				accumGrad = V.Add(accumGrad, V.Scale(grad, -F))
+			}
+			//End Inner Loop
+		}
+		V.Add(vector_field[i], V.Scl(accumGrad, mq2))
+	} //End Particle Loop
 }
+
 func (p SPHParticleSystem) Curl(vector_field []V.Vec, scalar_field []float64) {
 
 }
