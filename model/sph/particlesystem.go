@@ -18,11 +18,11 @@ type Pressure float64
 
 //Particle System Interface
 type ParticleSystem interface {
-	Positions() []Position
-	Velocities() []Velocity
-	Densities() []Density
-	Forces() []Force
-	Pressures() []Pressure
+	Positions() []V.Vec
+	Velocities() []V.Vec
+	Densities() []float64
+	Forces() []V.Vec
+	Pressures() []V.Vec
 	TimeStep() float64
 	UpdateTime() float64
 	Density(positions []V.Vec, density_field []float64)
@@ -91,8 +91,8 @@ func (p SPHParticleSystem) Density(positions []V.Vec, density_field []float64) {
 		for j := 0; j < len(sampleList); j++ {
 			pIndex := sampleList[j]
 			if i != j {
-				dist := V.Dist(positions[i], positions[j])
-				weight += p.Kern(dist)
+				dist := V.Dst(positions[i], positions[pIndex]) //Change to dist
+				weight += p.Kern.F(dist)
 			}
 		}
 		density := p.Particle.Mass() * weight
