@@ -6,3 +6,7 @@ type Sampler interface {
 	Run()
 	GetSamples(i int) []int
 }
+
+type VoxelSampler struct {
+	Voxel VoxelArray
+}

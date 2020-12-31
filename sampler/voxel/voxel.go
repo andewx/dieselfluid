@@ -1,6 +1,6 @@
 //Voxel Array Based Storage Structure O1 Lookup / Edit Times Using Voxel Index Bucket Technique
 //Voxel Array Runs an Update Thread To Continuously Edit Particle Position Indexes
-package sampler
+package voxel
 
 import (
 	"fmt"
@@ -54,7 +54,7 @@ type ParticleVoxelArray struct {
 //Allocates 1.5 x Number Particles Voxel Based Array At A Resolution Not To Exceed MAX_DIM
 //If A Particle Cannot Be Added To the Voxel Bucket It will attempt to insert in Neighbor Grids
 //If No Positions Are Found In The Neighbor Grid The Particle Index Won't Be Added Or Updated
-func Allocate(positions []V.Vec, res int, scale_grid float64) *VoxelArray {
+func Allocate(positions []V.Vec, res int, scale_grid float64) VoxelArray {
 	//Determine Bucket Header length
 	buckets := res * res * res
 	num_particles := len(positions)
@@ -94,10 +94,10 @@ func Allocate(positions []V.Vec, res int, scale_grid float64) *VoxelArray {
 		VoxelStorage.PVoxelIdx.Indexes[i].VoxIndex[1] = -1
 	}
 
-	return &VoxelStorage
+	return VoxelStorage
 }
 
-func (v *VoxelIndex) IsNil() bool {
+func (v VoxelIndex) IsNil() bool {
 	if v.VoxIndex[0] == -1 {
 		return true
 	}
@@ -105,7 +105,7 @@ func (v *VoxelIndex) IsNil() bool {
 }
 
 //Voxel Array Update
-func (v *VoxelArray) UpdateSampler() {
+func (v VoxelArray) UpdateSampler() {
 	v.Utilized = 0
 	for i := 0; i < v.VoxelDescriptor.Particles; i++ {
 		v.Update(i)
@@ -115,7 +115,7 @@ func (v *VoxelArray) UpdateSampler() {
 	}
 }
 
-func (v *VoxelArray) Update(pindex int) {
+func (v VoxelArray) Update(pindex int) {
 	//Find POSITION
 
 	refIndex := v.PVoxelIdx.Indexes[pindex]
@@ -172,12 +172,12 @@ func (v *VoxelArray) Update(pindex int) {
 
 }
 
-func (v *VoxelArray) Utilization() float64 {
+func (v VoxelArray) Utilization() float64 {
 	return float64(v.Utilized) / float64(v.VoxelDescriptor.Particles)
 }
 
 //Modulus Hashes A Position Into a Voxel Index Bucket - Lazy Hash Method
-func (v *VoxelArray) VoxelHash(pos V.Vec) VoxelIndex {
+func (v VoxelArray) VoxelHash(pos V.Vec) VoxelIndex {
 	x := pos[0]
 	y := pos[1]
 	z := pos[2]
@@ -209,12 +209,12 @@ func (v *VoxelArray) VoxelHash(pos V.Vec) VoxelIndex {
 
 }
 
-func (v *VoxelArray) GetSamples(idx int) []int {
+func (v VoxelArray) GetSamples(idx int) []int {
 	return v.GetSampleVoxels(v.PositionsRef[idx], idx)
 }
 
 //Gets Samples from position
-func (v *VoxelArray) GetSampleVoxels(pos V.Vec, idx int) []int {
+func (v VoxelArray) GetSampleVoxels(pos V.Vec, idx int) []int {
 	mNeighbors := v.VolumeLookup(pos)
 	sampleIndexes := make([]int, v.Samples)
 	index := 0
@@ -244,7 +244,7 @@ func (v *VoxelArray) GetSampleVoxels(pos V.Vec, idx int) []int {
 	return sampleIndexes
 }
 
-func (v *VoxelArray) GetAllNeighbors(idx int) []int {
+func (v VoxelArray) GetAllNeighbors(idx int) []int {
 	mNeighbors := v.VolumeLookup(v.PositionsRef[idx])
 	listCount := 0
 
@@ -286,7 +286,7 @@ func (v *VoxelArray) GetAllNeighbors(idx int) []int {
 }
 
 //Constructs Neighbor Voxels with position hashes
-func (v *VoxelArray) VolumeLookup(pos V.Vec) VoxelLookup {
+func (v VoxelArray) VolumeLookup(pos V.Vec) VoxelLookup {
 
 	vxNeighbors := VoxelLookup{make([]VoxelIndex, 27)}
 	i := 0
@@ -327,7 +327,7 @@ func (s VoxelArray) Run(status chan int) {
 }
 
 //Estimated Storage Requirement - Changes when resizes are called
-func (v *VoxelArray) PrintStorageRequirements() {
+func (v VoxelArray) PrintStorageRequirements() {
 	particleBytes := v.VoxelDescriptor.Particles * 16
 	cells := v.VoxelDescriptor.Divisions * v.VoxelDescriptor.Divisions * v.VoxelDescriptor.Divisions
 	voxelIndexBytes := cells * 4 * v.VoxelDescriptor.Buckets
