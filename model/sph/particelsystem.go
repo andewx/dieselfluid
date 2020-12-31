@@ -112,18 +112,3 @@ func (p SPHParticleSystem) Laplacian(vector_field []V.Vec, force_field []V.Vec) 
 func (p SPHParticleSystem) Curl(vector_field []V.Vec, scalar_field []float64) {
 
 }
-
-//---------------------MOVE to Parallel and Threading Class -----------------//
-/*
-//Vec_IterParallel Spawns System Threads for an iteration loop over a list
-//With implementing callback functions on that list
-func (p SPHParticleSystem)Vec_IterParallel(callback func(vector_list []V.Vec)V.Vec){
-        //Spawn Thread Functions For Each List Section N/(System_Processors)
-}
-
-//Vec_IterParallel Spawns System Threads for an iteration loop over a list
-//With implementing callback functions on that list
-func (p SPHParticleSystem)Scalar_IterParallel(callback func(scalar_list[]float64)float64){
-    //Spawn Thread Functions For Each List Section N/(System_Processors)
-}
-*/
