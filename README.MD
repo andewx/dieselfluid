@@ -15,7 +15,7 @@ Next order of business is moving fluid logic to the GPU side of the house and de
 
 # OVERVIEW
 
-Diesel SPH develops a langrangian fluid simulation environment with the GO Language environment. Go language was chosen for the ability to quickly build and test frameworks and applications, it's superior runtime performance, and easy multi-threading support. Note that all context calls to the GLFW/GL frameworks requires a single locked thread once the windowed application starts.
+Diesel SPH develops a fluid modeling framework in Go language. Allows for scene construction with both Grid/Particle/Hybrid Model Solvers
 
 # DEPENDENCIES:
 
