@@ -1,5 +1,5 @@
 # dieselfluid
-Diesel Smoothed Particle Hydrodynamics Library. Using Go Language, Go-GL / GLFW frameworks / Gonum
+Diesel Fluid Library. Using Go Language, Go-GL / GLFW frameworks / Gonum
 
 Not Curently GIT Hosted
 
@@ -12,8 +12,8 @@ Seeks to be SPH GO LANG Implementation framework of reference
 
 # README
 
-This version of Diesel SPH is still in development and not yet considered releasable for application development. However you may clone and work on your own repository. Currently we are testing just the SPH methods and rendering.
-Next order of business is moving fluid logic to the GPU side of the house and dealing with GPU shaders primarily
+This version of Diesel SPH is still in development and not yet considered releasable for application development.
+
 
 # OVERVIEW
 
@@ -21,24 +21,24 @@ Diesel SPH develops a fluid modeling framework in Go language. Allows for scene 
 
 # DEPENDENCIES:
 
-Uses <b>Go 1.8+</b>
-
-Currently this version uses <b>GL V4.1 / and GLFW wV3.2.</b> In the future we may look at build constraints in Go Lang in order to allow different versions of go-gl to be invoked.
-
+Uses <b>Go 1.15+</b>
+<b>GoNum</b>
+<b>Glfw</b>
+<b>Go-Gl</b>
 ##  For OpenGL 4.1
-'''bash
+```bash
 $ go get -u github.com/go-gl/gl/v4.1-core/gl
-'''
+```
 
 ##  For GLFW 3.2
-'''bash
+```bash
 $ go get github.com/go-gl/glfw/v3.2/glfw
-'''
-###Language Specification
+```
+###File Export
 
 Colon Parse SPH Language Specification
 
-'''bash
+```bash
 N=100,000
 D=20
 Method:DFSPH
@@ -64,7 +64,7 @@ VolumeMesh:MARCHING_INTERP
 VolumeBSDF:WATER|SMOKE
 Error:0.1
 BenchmarkLog:True
-'''
+```
 
 ##  TODO
 
