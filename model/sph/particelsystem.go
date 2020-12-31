@@ -6,6 +6,7 @@ package sph
 import (
 	"github.com/andewx/dieselfluid/kernel"
 	V "github.com/andewx/dieselfluid/math/math64" //Diesel Vector Library - Simple Vec
+	"github.com/andewx/dieselfluid/sampler"
 )
 
 //Define Particle Attribute Types
@@ -45,7 +46,8 @@ type SPHParticleSystem struct {
 	Particle SPHParticle
 	Time     float64
 	MaxVel   float64
-	Kern     Kernel
+	Kern     kernel.Kernel
+	Smplr    sampler.Sampler
 }
 
 //-----------Implements SPHParticleSystem -----------------------------
@@ -79,7 +81,25 @@ func (p SPHParticleSystem) UpdateTime() float64 {
 	return K
 }
 
-//Need the Kernel Function Before Implementation
+//Density -- Computes density field for SPH Particle System
+func (p SPHParticleSystem) Density(positions []V.Vec, density_field []float64) {
+	N := len(positions)
+	for i := 0; i < N; i++ {
+		sampleList := p.Smplr.GetSamples(i)
+		weight := p.Kern.W0()
+
+		for j := 0; j < len(sampleList); j++ {
+			pIndex := sampleList[j]
+			if i != j {
+				dist := V.Dist(positions[i], positions[j])
+				weight += p.Kern(dist)
+			}
+		}
+		density := p.Particle.Mass() * weight
+		density_field[i] = density
+	}
+}
+
 func (p SPHParticleSystem) Gradient(scalar []float64, vector_gradient []V.Vec) {
 
 }

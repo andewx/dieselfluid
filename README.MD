@@ -66,15 +66,6 @@ Error:0.1
 BenchmarkLog:True
 ```
 
-##  TODO
-
-1. Turn DieselSPH in extensible production Code
-2. Implement WCSPH - DFSPH Methods
-2. Serialize and compress animation Keyframes
-3. Implement Multiple Frame Buffers in GL for Fragment Discard
-4. Export Scene for Lux Render / PBRT / Cycles Ray Tracing
-
 ## BRANCHES
 
 main - Latest working build
-v0.0 - Development Build

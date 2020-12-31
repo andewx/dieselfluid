@@ -19,10 +19,12 @@ type Particle interface {
 	Gamma() float64            //Gamma Constant
 	Sound() float64            //Speed of Sound
 	Type() int                 //Particle Type
+	Mass() float64
 }
 
 //Defines General Particle Parameters - Implements Particle
 type SPHParticle struct {
+	Mass    float64
 	Dens    Density
 	Radius  float64
 	KrnlRad float64
@@ -36,6 +38,10 @@ type SPHParticle struct {
 
 func (p SPHParticle) D0() Density {
 	return p.Dens
+}
+
+func (p SPHParticle) Mass() float64 {
+	return p.Mass
 }
 
 //MapEOS maps a particle density to pressure
@@ -91,9 +97,9 @@ func (p SPHParticle) Type() int {
 //SPHParticle returns new SPHParticle with water parameters given particle radius
 //under the Weak EOS Equation K = 1 G = 1
 func Build_SPHParticle(rad float64) SPHParticle {
-	return SPHParticle{1000, rad, 1.5 * rad, 1, 1, 4800, 0}
+	return SPHParticle{1.0, 1000, rad, 1.5 * rad, 1, 1, 4800, 0}
 }
 
 func Build_SPHParticle0(rad float64, stiff float64, gamma float64, sound float64) SPHParticle {
-	return SPHParticle{1000, rad, 1.5 * rad, stiff, gamma, sound, 0}
+	return SPHParticle{1.0, 1000, rad, 1.5 * rad, stiff, gamma, sound, 0}
 }
