@@ -23,15 +23,13 @@ func (K Cubic) F(x float64) float64 {
 	}
 
 	s := (2 - r)
-	p := (1 - r)
-
-	ret := K.A * 0.25 * s * s * s
 
 	if r < 1.0 {
-		ret = K.A * ((0.25 * s * s * s) - (p * p * p))
+		p := (1 - r)
+		return K.A * ((0.25 * s * s * s) - (p * p * p))
 	}
 
-	return ret
+	return K.A * 0.25 * s * s * s
 }
 
 func (K Cubic) W0() float64 {
