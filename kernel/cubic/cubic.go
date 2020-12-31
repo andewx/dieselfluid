@@ -2,6 +2,8 @@ package kernel
 
 import V "github.com/andewx/dieselfluid/math/math64"
 
+const PI = 3.141592653589
+
 type Cubic struct {
 	A  float64
 	H  float64
@@ -11,7 +13,7 @@ type Cubic struct {
 //Build Cubic builds cubic kernel function
 func Build_Cubic(h float64) Cubic {
 	cubic := Cubic{0, h, h}
-	cubic.A = 1 / (kernel.PI * h * h * h)
+	cubic.A = 1 / (PI * h * h * h)
 	return cubic
 }
 
@@ -82,6 +84,6 @@ func (K Cubic) Adjust(densityRatio float64) float64 {
 }
 
 //Grad finds the kernel gradient
-func (K Cubic) Grad(x float64, dir *V.Vec32) V.Vec32 {
-	return V.Scale(*dir, -K.O1D(x))
+func (K Cubic) Grad(x float64, dir V.Vec) V.Vec {
+	return V.Scl(dir, -K.O1D(x))
 }

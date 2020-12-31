@@ -1,3 +1,8 @@
 github.com/andewx/dieselfluid v0.0.0-20201231010453-7c5652f259ef h1:HOKkYwn56K8b6qAAMOdGKTlvLglIginc8Cgtpnl2FMU=
+github.com/andewx/dieselfluid v0.0.0-20201231032230-9685307765f2 h1:5kBdedKnowPoluUjjQjxjmBpTPqd0SucpMguQtnPQag=
+github.com/andewx/dieselfluid/kernel v0.0.0-20201231040958-3352f95a62d8 h1:++WGnuD3B5YJSdVW1/1a8eelfaguC32DxSEgpJODgV0=
+github.com/andewx/dieselfluid/kernel v0.0.0-20201231040958-3352f95a62d8/go.mod h1:/Bk/m7SPZwH8+RYP0UsdTcf/Y+iCXiQDdEe5MsSp+oI=
 github.com/andewx/dieselfluid/math/math64 v0.0.0-20201231010453-7c5652f259ef h1:6Sl+rvvClasbG34nX1IdHr91VjOj5Thg17lcKHTN+NI=
 github.com/andewx/dieselfluid/math/math64 v0.0.0-20201231010453-7c5652f259ef/go.mod h1:FpezXBrVaHNsmv8rOpR4Pd8nQlG5sHR0k4WA0bteGgo=
+github.com/andewx/dieselfluid/math/math64 v0.0.0-20201231032230-9685307765f2 h1:LVxtsfOjSegEtRw7lGPAwII6LmMj6Q9yRr/wEdMhsQY=
+github.com/andewx/dieselfluid/math/math64 v0.0.0-20201231032230-9685307765f2/go.mod h1:FpezXBrVaHNsmv8rOpR4Pd8nQlG5sHR0k4WA0bteGgo=
