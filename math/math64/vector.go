@@ -5,18 +5,16 @@ package math64
 //Immutable Vector Operations
 
 import (
-	"github.com/gonum/blas64"
+	"fmt"
 	"math"
 )
 
-//Vec standard 3-Length Vector
+const EPSILON = 0.0000000019
+
+//Vec standard 3-Length Vectors
 type Vec [3]float64
-
-//Column-Major Mat 3x3
-type Mat3 [9]float64
-
-//Column-Major Mat 4x4
-type Mat4 [16]float64
+type Vec2 [2]float64
+type Vec4 [4]float64
 
 //Standard Vector Operations---------------------------------------------------
 
@@ -42,17 +40,22 @@ func Dot(a Vec, b Vec) float64 {
 
 //Cross computes A x B Vector operation
 func Cross(a Vec, b Vec) Vec {
-	g := Vec32{a[1]*b[2] - a[2]*b[1],
+	g := Vec{a[1]*b[2] - a[2]*b[1],
 		a[2]*b[0] - b[2]*a[0],
 		a[0]*b[1] - b[0]*a[1]}
 	return g
 }
 
+//Mag returns the magnitude length of a vector
+func Mag(v Vec) float64 {
+	return math.Sqrt(v[0]*v[0] + v[1]*v[1] + v[2]*v[2])
+}
+
 //Norm returns a normalized vector
 func Norm(a Vec) Vec {
 	v := Vec{}
-	l := a.Mag()
-	if l != 0 {
+	l := Mag(a)
+	if l != 0.0 {
 		v[0] = a[0] / l
 		v[1] = a[1] / l
 		v[2] = a[2] / l
@@ -60,34 +63,36 @@ func Norm(a Vec) Vec {
 	return v
 }
 
-//Mag returns the magnitude length of a vector
-func Mag(v Vec) Vec {
-	math.Sqrt(v[0]*v[0] + v[1]*v[1] + v[2]*v[2])
-}
-
 //Proj projects a vector onto the N Vec a -> N
 func Proj(a Vec, n Vec) Vec {
 	vn := Norm(n)
-	proj := Scl(vn, Dot(a, n)/n.Mag())
+	proj := Scl(vn, Dot(a, n)/Mag(n))
 	return proj
 }
 
 //ProjPlane Projects A onto the Plane of N
-func ProjPlane(a Vec, n Vec) {
+func ProjPlane(a Vec, n Vec) Vec {
 	pVec := Proj(a, n)
-	return Sub(a, pVec)
+	return Sub(pVec, a)
 }
 
 //Refl reflects the v vector about n
 func Refl(v Vec, n Vec) Vec {
-	dot := Dot(v, n) * 2
-	b := Sub(v, Scl(n, dot))
-	return b
+	b := Scl(n, Dot(v, n)*2.0)
+	return Sub(b, v)
 }
 
 //Eql Checks if two vectors are equal
-func Eql(a Vec, b Vec) Vec {
+func Eql(a Vec, b Vec) bool {
 	if b[0] == a[0] && b[1] == a[1] && b[2] == a[2] {
+		return true
+	}
+	return false
+}
+
+func isEpsilon(a float64) bool {
+	a = math.Abs(a)
+	if a < EPSILON {
 		return true
 	}
 	return false
@@ -104,20 +109,20 @@ func Tan(a Vec, n Vec) Vec {
 	return Sub(a, p)
 }
 
-func Print(a Vec) {
+func Print(a Vec) string {
 	return fmt.Sprintf("[ %f, %f, %f]\n", a[0], a[1], a[2])
 }
 
 //---------------INCLUDE BLAS64 Extended Functions and Wrappers here----------
 
-//Blas64 Creates New Blas64 Vec
+/*
 func Blas64(a Vec) blas64.Vector {
 	newVector := blas64.Vector{}
-	newVector.N = 3
 	newVector.Data = make([]float64, 3)
-	newVecotr.Data[0] = a[0]
-	newVecotr.Data[1] = a[1]
-	newVecotr.Data[2] = a[2]
+	newVector.Data[0] = a[0]
+	newVector.Data[1] = a[1]
+	newVector.Data[2] = a[2]
 	newVector.Inc = 0
 	return newVector
 }
+*/

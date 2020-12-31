@@ -74,5 +74,5 @@ BenchmarkLog:True
 
 ## BRANCHES
 
-Master - Latest working build
-Working - Development Build
+main - Latest working build
+v0.0 - Development Build

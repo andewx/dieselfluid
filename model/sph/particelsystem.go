@@ -4,7 +4,7 @@ package sph
 //for reuse with application specific SPH methods
 
 import (
-V  "github.com/andewx/dieselfluid/math/math64" //GoNum Wrapper - Diesel Math Library
+V  "github.com/andewx/dieselfluid/math/math64" //Diesel Vector Library - Simple Vec
 )
 
 //Define Particle Attribute Types
@@ -16,7 +16,7 @@ type Pressure float64
 
 
 //Particle System Interface
-interface ParticleSystem{
+type ParticleSystem interface{
   func (p ParticleSystem)Positions() []Position
   func (p ParticleSystem)Velocities() []Velocity
   func (p ParticleSystem)Densities() []Density

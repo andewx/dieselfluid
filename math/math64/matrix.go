@@ -1,4 +1,4 @@
-package vector
+package math64
 
 import "fmt"
 
@@ -89,6 +89,7 @@ func Identity2() Mat2 {
 	nMat := Mat2{}
 	nMat[0] = 1.0
 	nMat[3] = 1.0
+	return nMat
 }
 
 //Identity3 constructs the 3 NxN Matrix Identity
@@ -97,6 +98,7 @@ func Identity3() Mat3 {
 	nMat[0] = 1.0
 	nMat[4] = 1.0
 	nMat[8] = 1.0
+	return nMat
 }
 
 //Identity4 constructs the 4 NxN Matrix Identity
@@ -106,6 +108,7 @@ func Identity4() Mat4 {
 	nMat[5] = 1.0
 	nMat[10] = 1.0
 	nMat[15] = 1.0
+	return nMat
 }
 
 //Maps given indices to single linear array matrix
@@ -124,7 +127,7 @@ func Map(i int, j int, mat_size int) (int, error) {
 }
 
 //Cross Product Functions Between Mat x Mat / Mat x Vec Computations Immutable
-func (a *Mat2) Det() float32 {
+func (a *Mat2) Det() float64 {
 	return a[0]*a[3] - a[1]*a[2]
 }
 
@@ -146,7 +149,7 @@ func (m *Mat2) Inverse() (*Mat2, error) {
 
 //Det calcs the 3x3 Determinant
 // return m[0][0] *(m[1][1]*m[2][2] - m[1][2]*m[2][1]) - m[0][1]*(m[1][0]*m[2][2] - m[1][2]*m[2][0]) - m[0][2]*(m[1][0]*m[2][1]-m[1][1]*m[2][0])
-func (m *Mat3) Det() float32 {
+func (m *Mat3) Det() float64 {
 	g := Mat2{m[4], m[5], m[7], m[8]}
 	h := Mat2{m[3], m[5], m[6], m[8]}
 	j := Mat2{m[3], m[4], m[6], m[7]}
@@ -184,7 +187,7 @@ func (m *Mat3) Inverse() *Mat3 {
 }
 
 //Det Solves the 4x4 Matrix Determinant
-func (m *Mat4) Det() float32 {
+func (m *Mat4) Det() float64 {
 	a := m[0]
 	b := m[1]
 	c := m[2]
@@ -204,12 +207,12 @@ func (a *Mat3) CrossMat(b *Mat3) (*Mat3, error) {
 	r := Mat3{}
 	var Err error
 	var index int
-	var entry float32
+	var entry float64
 	var rv, cv int
 	for i := 0; i < MAT3; i++ {
 		for j := 0; j < MAT3; j++ {
 			index, Err = Map(i, j, MAT3)
-			entry = float32(0.0)
+			entry = float64(0.0)
 			for k := 0; k < MAT3; k++ {
 				rv, _ = Map(i, k, MAT3)
 				cv, Err = Map(k, j, MAT3)
@@ -228,12 +231,12 @@ func (a *Mat4) CrossMat(b *Mat4) (*Mat4, error) {
 	r := Mat4{}
 	var Err error
 	var index int
-	var entry float32
+	var entry float64
 	var rv, cv int
 	for i := 0; i < MAT4; i++ {
 		for j := 0; j < MAT4; j++ {
 			index, Err = Map(i, j, MAT4)
-			entry = float32(0.0)
+			entry = float64(0.0)
 			for k := 0; k < MAT4; k++ {
 				rv, _ = Map(i, k, MAT4)
 				cv, Err = Map(k, j, MAT4)
@@ -309,7 +312,7 @@ func (a *Mat4) Transpose() *Mat4 {
 }
 
 //Projection Matrix creates a projection matrix
-func ProjectionMatrix(l float32, r float32, t float32, b float32, n float32, f float32) Mat4 {
+func ProjectionMatrix(l float64, r float64, t float64, b float64, n float64, f float64) Mat4 {
 	proj := Mat4{1, 0, 0, 0, 0, 1, 0, 0, 0, 0, (-f / (f - n)), (-f * n) / (f - n), 0, 0, -1, 0} //scratch a pixel projection matrix
 	return proj
 }

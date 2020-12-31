@@ -1,0 +1,3 @@
+github.com/andewx/dieselfluid v0.0.0-20201231010453-7c5652f259ef h1:HOKkYwn56K8b6qAAMOdGKTlvLglIginc8Cgtpnl2FMU=
+github.com/andewx/dieselfluid/math/math64 v0.0.0-20201231010453-7c5652f259ef h1:6Sl+rvvClasbG34nX1IdHr91VjOj5Thg17lcKHTN+NI=
+github.com/andewx/dieselfluid/math/math64 v0.0.0-20201231010453-7c5652f259ef/go.mod h1:FpezXBrVaHNsmv8rOpR4Pd8nQlG5sHR0k4WA0bteGgo=

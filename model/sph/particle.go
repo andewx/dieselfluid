@@ -8,7 +8,7 @@ const PARTICLE_BOUND = 1
 const PARTICLE_GHOST = 2
 
 //Particle Interface
-interface Particle{
+type Particle interface{
   func (p Particle)D0()float64 //Target Density
   func (p Particle)MapEOS(d Density)Pressure //Maps Pressure
   func (p Particle)KernelVolume()float64 //Kernel Volume
