@@ -7,6 +7,8 @@ Need to initialize all packages and modules still
 
 Seeks to be SPH GO LANG Implementation framework of reference
 
+![DieselFluid Go Logo](logo.png?raw=true "DieselFluid Go")
+
 
 # README
 
