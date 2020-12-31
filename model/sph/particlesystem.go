@@ -6,7 +6,7 @@ package sph
 import (
 	"github.com/andewx/dieselfluid/kernel"
 	V "github.com/andewx/dieselfluid/math/math64" //Diesel Vector Library - Simple Vec
-	//	"github.com/andewx/dieselfluid/sampler"
+	"github.com/andewx/dieselfluid/sampler"
 )
 
 //Define Particle Attribute Types
