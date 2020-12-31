@@ -99,7 +99,7 @@ func isEpsilon(a float64) bool {
 }
 
 //Dst returns the distance between two vectors B-A/L
-func Dst(a Vec, b Vec) float64 {
+func Dist(a Vec, b Vec) float64 {
 	return Mag(Sub(a, b))
 }
 

@@ -6,7 +6,7 @@ package sph
 import (
 	"github.com/andewx/dieselfluid/kernel"
 	V "github.com/andewx/dieselfluid/math/math64" //Diesel Vector Library - Simple Vec
-	"github.com/andewx/dieselfluid/sampler"
+	//	"github.com/andewx/dieselfluid/sampler"
 )
 
 //Define Particle Attribute Types
@@ -38,11 +38,11 @@ type ParticleSystem interface {
 //A DFSPH / WCSPH / IISPH / PCISPH Can utilize the SPH Particle System Layout and compute the Gradients
 //and field derivatives consistently. Also Particle In Cell Methods Benefit
 type SPHParticleSystem struct {
-	Pos      []Position
-	Dens     []Density
-	Vels     []Velocity
-	Fs       []Force
-	Ps       []Pressure
+	Pos      []V.Vec
+	Dens     []float64
+	Vels     []V.Vec
+	Fs       []V.Vec
+	Ps       []float64
 	Particle SPHParticle
 	Time     float64
 	MaxVel   float64
@@ -51,19 +51,19 @@ type SPHParticleSystem struct {
 }
 
 //-----------Implements SPHParticleSystem -----------------------------
-func (p SPHParticleSystem) Positions() []Position {
+func (p SPHParticleSystem) Positions() []V.Vec {
 	return p.Pos
 }
-func (p SPHParticleSystem) Velocities() []Velocity {
+func (p SPHParticleSystem) Velocities() []V.Vec {
 	return p.Vels
 }
-func (p SPHParticleSystem) Densities() []Density {
+func (p SPHParticleSystem) Densities() []float64 {
 	return p.Dens
 }
-func (p SPHParticleSystem) Forces() []Force {
+func (p SPHParticleSystem) Forces() []V.Vec {
 	return p.Fs
 }
-func (p SPHParticleSystem) Pressures() []Pressure {
+func (p SPHParticleSystem) Pressures() []float64 {
 	return p.Ps
 }
 func (p SPHParticleSystem) TimeStep() float64 {

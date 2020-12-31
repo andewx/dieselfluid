@@ -24,7 +24,7 @@ type Particle interface {
 
 //Defines General Particle Parameters - Implements Particle
 type SPHParticle struct {
-	Mass    float64
+	Ms      float64
 	Dens    Density
 	Radius  float64
 	KrnlRad float64
@@ -41,7 +41,7 @@ func (p SPHParticle) D0() Density {
 }
 
 func (p SPHParticle) Mass() float64 {
-	return p.Mass
+	return p.Ms
 }
 
 //MapEOS maps a particle density to pressure
