@@ -5,6 +5,7 @@ package sph
 
 import (
 	V "dslfluid.com/dsl/math/math64" //Diesel Vector Library - Simple Vec
+	"dslfluid.com/dsl/model"
 	F "dslfluid.com/dsl/model/field"
 )
 
@@ -30,7 +31,7 @@ type SPHParticleSystem struct {
 	Vels     []V.Vec
 	Fs       []V.Vec
 	Ps       []float64
-	Particle SPHParticle
+	Particle model.SPHParticle
 	Time     float64
 	MaxVel   float64
 	Field    F.SPHField
