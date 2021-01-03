@@ -3,7 +3,7 @@ package field
 import (
 	"dslfluid.com/dsl/kernel"
 	V "dslfluid.com/dsl/math/math64" //Diesel Vector Library - Simple Vec
-	"dslfluid.com/dsl/model/sph"
+	"dslfluid.com/dsl/model"
 	"dslfluid.com/dsl/sampler"
 )
 
@@ -18,9 +18,9 @@ type Field interface {
 
 //SPHField implements Field Interface
 type SPHField struct {
-	Kern     kernel.Kernel
-	Smplr    sampler.Sampler
-	Particle sph.Particle
+	Kern  kernel.Kernel
+	Smplr sampler.Sampler
+	Part  model.Particle
 }
 
 //Density -- Computes density field for SPH Field
@@ -37,7 +37,7 @@ func (p SPHField) Density(positions []V.Vec, density_field []float64) {
 				weight += p.Kern.F(dist)
 			}
 		}
-		density := p.Particle.Mass() * weight
+		density := p.Part.Mass() * weight
 		density_field[i] = density
 	}
 }
@@ -50,8 +50,8 @@ func (p SPHField) Gradient(positions []V.Vec, scalar []float64, densities []V.Ve
 		samples := p.Smplr.GetSamples(i)
 		dens := densities[i]
 		F := float64(0.0)
-		p.Kern.Adjust(dens / p.Particle.D0())
-		mass := p.Particle.Mass()
+		p.Kern.Adjust(dens / p.Part.D0())
+		mass := p.Part.Mass()
 		mq2 := -mass * mass
 		accumGrad := V.Vec{}
 		//Conduct inner loop
@@ -80,8 +80,8 @@ func (p SPHField) Div(positions []V.Vec, vector_field []V.Vec, densities []float
 		samples := p.Smplr.GetSamples(i)
 		dens := densities[i]
 		div := float64(0.0)
-		p.Kern.Adjust(dens / p.Particle.D0())
-		mass := p.Particle.Mass()
+		p.Kern.Adjust(dens / p.Part.D0())
+		mass := p.Part.Mass()
 
 		//For all particle neighbors -- Non Symmetric
 		for j := 0; j < len(samples); j++ {
@@ -107,8 +107,8 @@ func (p SPHField) Laplacian(positions []V.Vec, scalar_field []V.Vec, densities [
 		samples := p.Smplr.GetSamples(i)
 		dens := densities[i]
 		lap := float64(0.0)
-		p.Kern.Adjust(dens / p.Particle.D0())
-		mass := p.Particle.Mass()
+		p.Kern.Adjust(dens / p.Part.D0())
+		mass := p.Part.Mass()
 
 		//Conduct inner loop
 		for j := 0; j < len(samples); j++ {
@@ -131,8 +131,8 @@ func (p SPHField) Curl(positions []V.Vec, vector_field []V.Vec, curl_field []flo
 		samples := p.Smplr.GetSamples(i)
 		dens := densities[i]
 		curl_vec := V.Vec{}
-		p.Kern.Adjust(dens / p.Particle.D0())
-		mass := p.Particle.Mass()
+		p.Kern.Adjust(dens / p.Part.D0())
+		mass := p.Part.Mass()
 
 		//For all particle neighbors
 		for j := 0; j < len(samples); j++ {

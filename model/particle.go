@@ -1,4 +1,4 @@
-package sph
+package model
 
 import "math"
 
