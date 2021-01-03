@@ -1,7 +1,7 @@
 # dieselfluid
 Diesel Fluid Go Lang Repository
 
-###This Repository is still in development
+### This Repository is still in development
 
 ![DieselFluid Go Logo](logo.png?raw=true "DieselFluid Go")
 
@@ -14,7 +14,7 @@ This version of Diesel SPH is still in development and is not yet build ready.
 
 Diesel SPH develops a fluid modeling framework in Go language. Allows for scene construction with both Grid/Particle/Hybrid Model Solvers. Real-time rendering in window handled in OpenGL. Raytrace to PBRT/Mitsuba.
 
-##External Dependencies:
+## External Dependencies:
 Go-Gl
 Go GLFW
 GoNum
