@@ -9,6 +9,6 @@ type Kernel interface {
 	H() float64  //Smoothing Length
 	H0() float64 //Adaptive Smoothing Length
 	Adjust(ratio float64) float64
-	Grad(x float64, dir V.Vec)
+	Grad(x float64, dir V.Vec) V.Vec
 	W0() float64
 }

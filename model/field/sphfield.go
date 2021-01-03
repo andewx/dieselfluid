@@ -43,9 +43,9 @@ func (p SPHField) Density(positions []V.Vec, density_field []float64) {
 }
 
 //Gradient computes SPH Particle scalar gradient dependent on density field
-func (p SPHField) Gradient(positions []V.Vec, scalar []float64, densities []V.Vec, vector_gradient []V.Vec) {
+func (p SPHField) Gradient(positions []V.Vec, scalar []float64, densities []float64, vector_gradient []V.Vec) {
 
-	for i := 0; i < len(scalar); i++ {
+	for i := 0; i < len(positions); i++ {
 		//For Each Particle Calculate Kernel Based Summation
 		samples := p.Smplr.GetSamples(i)
 		dens := densities[i]
@@ -62,9 +62,9 @@ func (p SPHField) Gradient(positions []V.Vec, scalar []float64, densities []V.Ve
 				dir := V.Sub(positions[samples[j]], positions[i])
 				dist := V.Mag(dir)
 				dir = V.Norm(dir) //Normalize
-				grad := fluid.Kern.Gradient(dist, dir)
+				grad := p.Kern.Grad(dist, dir)
 				F = ((scalar[i] / (dens * dens)) + (scalar[samples[j]] / (jDensity * jDensity)))
-				accumGrad = V.Add(accumGrad, V.Scale(grad, -F))
+				accumGrad = V.Add(accumGrad, V.Scl(grad, -F))
 			}
 			//End Inner Loop
 		}
@@ -75,7 +75,7 @@ func (p SPHField) Gradient(positions []V.Vec, scalar []float64, densities []V.Ve
 
 //Div computes vector field divergence
 func (p SPHField) Div(positions []V.Vec, vector_field []V.Vec, densities []float64, div_field []float64) {
-	for i := 0; i < len(scalar); i++ {
+	for i := 0; i < len(positions); i++ {
 		//For Each Particle Calculate Kernel Based Summation
 		samples := p.Smplr.GetSamples(i)
 		dens := densities[i]
@@ -91,7 +91,7 @@ func (p SPHField) Div(positions []V.Vec, vector_field []V.Vec, densities []float
 				dir := V.Sub(positions[samples[j]], positions[i])
 				dist := V.Mag(dir)
 				dir = V.Norm(dir) //Normalize
-				grad := fluid.Kern.Gradient(dist, dir)
+				grad := p.Kern.Grad(dist, dir)
 				scaleVec := V.Scl(vector_field[samples[j]], mass/jDensity)
 				div = div + V.Dot(scaleVec, grad)
 			}
@@ -101,8 +101,8 @@ func (p SPHField) Div(positions []V.Vec, vector_field []V.Vec, densities []float
 }
 
 //Laplacian computes vector field laplacian which is formally known as the divergence of the gradient of F
-func (p SPHField) Laplacian(positions []V.Vec, scalar_field []V.Vec, densities []float64, lap_field []float64) {
-	for i := 0; i < len(scalar); i++ {
+func (p SPHField) Laplacian(positions []V.Vec, scalar_field []float64, densities []float64, lap_field []float64) {
+	for i := 0; i < len(positions); i++ {
 		//For Each Particle Calculate Kernel Based Summation
 		samples := p.Smplr.GetSamples(i)
 		dens := densities[i]
@@ -125,8 +125,8 @@ func (p SPHField) Laplacian(positions []V.Vec, scalar_field []V.Vec, densities [
 }
 
 //Curl computes non-symmetric curl
-func (p SPHField) Curl(positions []V.Vec, vector_field []V.Vec, curl_field []float64) {
-	for i := 0; i < len(scalar); i++ {
+func (p SPHField) Curl(positions []V.Vec, densities []float64, vector_field []V.Vec, curl_field []V.Vec) {
+	for i := 0; i < len(positions); i++ {
 		//For Each Particle Calculate Kernel Based Summation
 		samples := p.Smplr.GetSamples(i)
 		dens := densities[i]
@@ -142,9 +142,9 @@ func (p SPHField) Curl(positions []V.Vec, vector_field []V.Vec, curl_field []flo
 				dir := V.Sub(positions[samples[j]], positions[i])
 				dist := V.Mag(dir)
 				dir = V.Norm(dir) //Normalize
-				grad := fluid.Kern.Gradient(dist, dir)
+				grad := p.Kern.Grad(dist, dir)
 				scaleVec := V.Scl(vector_field[samples[j]], mass/jDensity)
-				curl_vec = V.Add(curl_vec, V.Scl(V.Cross(vector_field[samples[j]], grad), mass/jDensity))
+				curl_vec = V.Add(curl_vec, V.Cross(scaleVec, grad))
 			}
 		} //End J
 		curl_field[i] = curl_vec
