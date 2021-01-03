@@ -12,7 +12,7 @@ This version of Diesel SPH is still in development and is not yet build ready.
 
 # OVERVIEW
 
-Diesel SPH develops a fluid modeling framework in Go language. Allows for scene construction with both Grid/Particle/Hybrid Model Solvers. Real-time rendering in window handled in OpenGL. Raytrace to PBRT/Mitsuba.
+Diesel SPH develops a fluid modeling framework in Go language. Allows for scene construction with both Grid/Particle/Hybrid Model Solvers.
 
 ## External Dependencies:
 Go-Gl
