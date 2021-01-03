@@ -3,8 +3,8 @@
 package voxel
 
 import (
+	V "dslfluid.com/dsl/math/math64"
 	"fmt"
-	V "github.com/andewx/dieselfluid/math/math64"
 )
 
 const MAX_DIM = 15

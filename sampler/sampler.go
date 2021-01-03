@@ -1,6 +1,6 @@
 package sampler
 
-import "github.com/andewx/dieselfluid/sampler/voxel"
+import "dslfluid.com/dsl/sampler/voxel"
 
 //Sampler type interface defines sampler function interface
 type Sampler interface {

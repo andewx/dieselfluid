@@ -4,8 +4,8 @@ package sph
 //for reuse with application specific SPH methods
 
 import (
-	V "github.com/andewx/dieselfluid/math/math64" //Diesel Vector Library - Simple Vec
-	F "github.com/andewx/dieselfluid/model/field"
+	V "dslfluid.com/dsl/math/math64" //Diesel Vector Library - Simple Vec
+	F "dslfluid.com/dsl/model/field"
 )
 
 //Particle System Interface

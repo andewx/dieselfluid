@@ -1,6 +1,6 @@
 package kernel
 
-import V "github.com/andewx/dieselfluid/math/math64"
+import V "dslfluid.com/dsl/math/math64"
 
 const PI = 3.141592653589
 

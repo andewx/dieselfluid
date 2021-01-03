@@ -1,26 +1,27 @@
 package field
 
 import (
-	"kernel"
-	V "math/math64" //Diesel Vector Library - Simple Vec
-	"sampler"
+	"dslfluid.com/dsl/kernel"
+	V "dslfluid.com/dsl/math/math64" //Diesel Vector Library - Simple Vec
+	"dslfluid.com/dsl/model/sph"
+	"dslfluid.com/dsl/sampler"
 )
 
 //Field interface provides lagrangian analytical component to SPH
-type Field interface{
+type Field interface {
 	Density(positions []V.Vec, density_field []float64)
-	Gradient( positions[]V.Vec, scalar []float64, vector_gradient []V.Vec)
-	Div( positions[]V.Vec, vector_field []V.Vec, div_field []float64)
-	Laplacian( positions[]V.Vec, vector_field []V.Vec, force_field []V.Vec)
-	Curl( positions[]V.Vec, vector_field []V.Vec, scalar_field []float64)
+	Gradient(positions []V.Vec, scalar []float64, vector_gradient []V.Vec)
+	Div(positions []V.Vec, vector_field []V.Vec, div_field []float64)
+	Laplacian(positions []V.Vec, vector_field []V.Vec, force_field []V.Vec)
+	Curl(positions []V.Vec, vector_field []V.Vec, scalar_field []float64)
 }
 
 //SPHField implements Field Interface
-type SPHField struct{
+type SPHField struct {
 	Kern     kernel.Kernel
 	Smplr    sampler.Sampler
+	Particle sph.Particle
 }
-
 
 //Density -- Computes density field for SPH Field
 func (p SPHField) Density(positions []V.Vec, density_field []float64) {
@@ -32,7 +33,7 @@ func (p SPHField) Density(positions []V.Vec, density_field []float64) {
 		for j := 0; j < len(sampleList); j++ {
 			pIndex := sampleList[j]
 			if i != j {
-				dist := V.Dst(positions[i], positions[pIndex]) //Change to dist
+				dist := V.Dist(positions[i], positions[pIndex]) //Change to dist
 				weight += p.Kern.F(dist)
 			}
 		}
@@ -42,7 +43,7 @@ func (p SPHField) Density(positions []V.Vec, density_field []float64) {
 }
 
 //Gradient computes SPH Particle scalar gradient dependent on density field
-func (p SPHField) Gradient(positions[]V.Vec, scalar []float64, densities []V.Vec, vector_gradient []V.Vec) {
+func (p SPHField) Gradient(positions []V.Vec, scalar []float64, densities []V.Vec, vector_gradient []V.Vec) {
 
 	for i := 0; i < len(scalar); i++ {
 		//For Each Particle Calculate Kernel Based Summation
@@ -73,7 +74,7 @@ func (p SPHField) Gradient(positions[]V.Vec, scalar []float64, densities []V.Vec
 }
 
 //Div computes vector field divergence
-func (p SPHField) Div(positions[]V.Vec, vector_field []V.Vec, densities []float64, div_field []float64) {
+func (p SPHField) Div(positions []V.Vec, vector_field []V.Vec, densities []float64, div_field []float64) {
 	for i := 0; i < len(scalar); i++ {
 		//For Each Particle Calculate Kernel Based Summation
 		samples := p.Smplr.GetSamples(i)
@@ -92,15 +93,15 @@ func (p SPHField) Div(positions[]V.Vec, vector_field []V.Vec, densities []float6
 				dir = V.Norm(dir) //Normalize
 				grad := fluid.Kern.Gradient(dist, dir)
 				scaleVec := V.Scl(vector_field[samples[j]], mass/jDensity)
-				div = div + V.Dot(scaleVec,grad)
+				div = div + V.Dot(scaleVec, grad)
 			}
-		}//End J
+		} //End J
 		div_field[i] = div
 	} //End Particle Loop
 }
 
 //Laplacian computes vector field laplacian which is formally known as the divergence of the gradient of F
-func (p SPHField) Laplacian( positions[]V.Vec, scalar_field []V.Vec, densities []float64, lap_field []float64) {
+func (p SPHField) Laplacian(positions []V.Vec, scalar_field []V.Vec, densities []float64, lap_field []float64) {
 	for i := 0; i < len(scalar); i++ {
 		//For Each Particle Calculate Kernel Based Summation
 		samples := p.Smplr.GetSamples(i)
@@ -115,16 +116,16 @@ func (p SPHField) Laplacian( positions[]V.Vec, scalar_field []V.Vec, densities [
 			if jIndex != i {
 				jDensity := densities[samples[j]]
 				dist := V.Dist(positions[i], positions[j])
-				lap += (mass/jDensity)*(scalar_field[j]- scalar_field[i])*p.Kern.O2D(dist)
+				lap += (mass / jDensity) * (scalar_field[j] - scalar_field[i]) * p.Kern.O2D(dist)
 			}
 			//End Inner Loop
-		}lap_field[i] += lap
+		}
+		lap_field[i] += lap
 	} //End Particle Loop
 }
 
-
 //Curl computes non-symmetric curl
-func (p SPHField) Curl(positions[]V.Vec, vector_field []V.Vec, curl_field []float64) {
+func (p SPHField) Curl(positions []V.Vec, vector_field []V.Vec, curl_field []float64) {
 	for i := 0; i < len(scalar); i++ {
 		//For Each Particle Calculate Kernel Based Summation
 		samples := p.Smplr.GetSamples(i)
@@ -143,9 +144,9 @@ func (p SPHField) Curl(positions[]V.Vec, vector_field []V.Vec, curl_field []floa
 				dir = V.Norm(dir) //Normalize
 				grad := fluid.Kern.Gradient(dist, dir)
 				scaleVec := V.Scl(vector_field[samples[j]], mass/jDensity)
-				curl_vec = V.Add(curl_vec,V.Scl(V.Cross(vector_field[samples[j]], grad), mass/jDensity))
+				curl_vec = V.Add(curl_vec, V.Scl(V.Cross(vector_field[samples[j]], grad), mass/jDensity))
 			}
-		}//End J
+		} //End J
 		curl_field[i] = curl_vec
 	} //End Particle Loop
 }

@@ -9,23 +9,23 @@ const PARTICLE_GHOST = 2
 
 //Particle Interface
 type Particle interface {
-	D0() float64               //Target Density
-	MapEOS(d Density) Pressure //Maps Pressure
-	KernelVolume() float64     //Kernel Volume
-	KernelRad() float64        //Kernel Radius
-	Rad() float64              //Particle Radius
-	Vol() float64              //Particle Volume
-	Stiffness() float64        //Stifness Constant
-	Gamma() float64            //Gamma Constant
-	Sound() float64            //Speed of Sound
-	Type() int                 //Particle Type
+	D0() float64              //Target float64
+	MapEOS(d float64) float64 //Maps float64
+	KernelVolume() float64    //Kernel Volume
+	KernelRad() float64       //Kernel Radius
+	Rad() float64             //Particle Radius
+	Vol() float64             //Particle Volume
+	Stiffness() float64       //Stifness Constant
+	Gamma() float64           //Gamma Constant
+	Sound() float64           //Speed of Sound
+	Type() int                //Particle Type
 	Mass() float64
 }
 
 //Defines General Particle Parameters - Implements Particle
 type SPHParticle struct {
 	Ms      float64
-	Dens    Density
+	Dens    float64
 	Radius  float64
 	KrnlRad float64
 	EosK    float64
@@ -36,7 +36,7 @@ type SPHParticle struct {
 
 //-----------Implements SPH PARTICLE ------------------------//
 
-func (p SPHParticle) D0() Density {
+func (p SPHParticle) D0() float64 {
 	return p.Dens
 }
 
@@ -44,13 +44,13 @@ func (p SPHParticle) Mass() float64 {
 	return p.Ms
 }
 
-//MapEOS maps a particle density to pressure
-func (p SPHParticle) MapEOS(d Density) Pressure {
+//MapEOS maps a particle float64 to float64
+func (p SPHParticle) MapEOS(d float64) float64 {
 	if d < p.Dens {
 		d = p.Dens
 	}
 	R := d / p.Dens
-	return Pressure(p.Stiffness() * (math.Pow(float64(R), p.EosG) - 1.0))
+	return float64(p.Stiffness() * (math.Pow(float64(R), p.EosG) - 1.0))
 }
 
 //Kernel Volume Returns kernel Volume

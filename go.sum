@@ -1,0 +1,7 @@
+github.com/andewx/dieselfluid v0.0.0-20210103184235-121b09a298e7 h1:1FzAjlGgT/Cp9wNhCvDr0j2ue2/+4+BN9uagEl+CmOU=
+github.com/andewx/dieselfluid/math/math64 v0.0.0-20201231045154-afd1b1ef4904/go.mod h1:FpezXBrVaHNsmv8rOpR4Pd8nQlG5sHR0k4WA0bteGgo=
+github.com/andewx/dieselfluid/math/math64 v0.0.0-20210102013021-9c8bad47080d h1:W5Z59s41d5LzNR+yft7TiVDmN7c++orlUSmt6NlIGgM=
+github.com/andewx/dieselfluid/math/math64 v0.0.0-20210102013021-9c8bad47080d/go.mod h1:FpezXBrVaHNsmv8rOpR4Pd8nQlG5sHR0k4WA0bteGgo=
+github.com/andewx/dieselfluid/sampler v0.0.0-20210103184235-121b09a298e7 h1:w93nfOl2NrEsfTVU0SQ+nbrKXVQRr9GSWE5hQDxqM1g=
+github.com/andewx/dieselfluid/sampler/voxel v0.0.0-20210103184235-121b09a298e7 h1:Wp1Mi7nyqiOqPPAh2SDMXWpJtZGLoaoqz4ZtYhx/nMc=
+github.com/andewx/dieselfluid/sampler/voxel v0.0.0-20210103184235-121b09a298e7/go.mod h1:e3XityZxTAQbparJryb3vXKatTulKIOiTxa9XrOxD8w=
