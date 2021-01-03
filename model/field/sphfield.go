@@ -1,9 +1,9 @@
 package field
 
 import (
-	"github.com/andewx/dieselfluid/kernel"
-	V "github.com/andewx/dieselfluid/math/math64" //Diesel Vector Library - Simple Vec
-	"github.com/andewx/dieselfluid/sampler"
+	"kernel"
+	V "math/math64" //Diesel Vector Library - Simple Vec
+	"sampler"
 )
 
 //Field interface provides lagrangian analytical component to SPH
