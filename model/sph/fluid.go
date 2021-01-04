@@ -67,6 +67,11 @@ func (p SPHCore) UpdateTime() float64 {
 
 //-----------SPH Core Private (From Interface) Methods --------------------//
 
+//ComputeDensity calculates particle density -- Maps Particle Density to Pressure
+func (p SPHCore) ComputeDensity() {
+
+}
+
 //AccumulatePressure -- Accumulates Particle Pressure Forces
 func (p SPHCore) AccumulatePressure() int {
 	return 0
@@ -79,11 +84,6 @@ func (p SPHCore) Accumulate_NonPressure() int {
 
 //External adds external forces -- (Gravity - Wind Resist Etc)
 func (p SPHCore) External(force V.Vec) {
-
-}
-
-//ComputeDensity calculates particle density -- Maps Particle Density to Pressure
-func (p SPHCore) ComputeDensity() {
 
 }
 

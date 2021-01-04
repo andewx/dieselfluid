@@ -31,6 +31,10 @@ const VOXEL_CACHE_SAMPLER = 1
 const SAMPLER_HEURISTIC_NEIGHBORS = 2
 const SAMPLER_ALL_NEIGHBORS = 3
 
+//SPH Method Return Values
+const SPH_VALID = 0
+const SPH_EOS_INF = -1
+
 //Particle Interface
 type Particle interface {
 	D0() float64              //Target float64
