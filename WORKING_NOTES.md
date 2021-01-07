@@ -4,9 +4,9 @@
   - API Node Is Go Component/Entity System: Key/Value/Object Map
   - {Con: WebGL buffer integration with DieselFluid Framework}
   - {Con: Multiple Window Contexts for a single application, non integrated}
-  - {Con: }
   - {Con: Only using Electron for Windowing/Event/JS}
   - {Pro: Configurable, CSS, Floating Task Bar, HTML 5 Animation}
   - {Pro: Complex GUI, Filesystems, Object Graphs, Embed Image/Video}
   - {Pro: GUI Completely Extensible + HTML5 + Web Socket Requests Node JS}
   - {Pro: Commit Working Notes}
+  - {Pro: Don't have to implement GL based picking UI framework with event system}

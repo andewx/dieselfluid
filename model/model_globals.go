@@ -12,6 +12,7 @@ const THREAD_WAIT = 100
 const THREAD_GO = 101
 const THREAD_ERR = 102
 const THREAD_DONE = 103
+const SPH_THREAD_WAITING = 104
 
 //Collision Handling
 const SPH_MESH_COLLIS = 1

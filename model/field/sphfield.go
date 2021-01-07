@@ -12,7 +12,7 @@ type Field interface {
 	Density(positions []V.Vec, density_field []float64)
 	Gradient(positions []V.Vec, scalar []float64, vector_gradient []V.Vec)
 	Div(positions []V.Vec, vector_field []V.Vec, div_field []float64)
-	Laplacian(positions []V.Vec, vector_field []V.Vec, force_field []V.Vec)
+	Laplacian(positions []V.Vec, densities []float64, vector_field []V.Vec, force_field []V.Vec)
 	Curl(positions []V.Vec, vector_field []V.Vec, scalar_field []float64)
 }
 
@@ -101,12 +101,12 @@ func (p SPHField) Div(positions []V.Vec, vector_field []V.Vec, densities []float
 }
 
 //Laplacian computes vector field laplacian which is formally known as the divergence of the gradient of F
-func (p SPHField) Laplacian(positions []V.Vec, scalar_field []float64, densities []float64, lap_field []float64) {
+func (p SPHField) Laplacian(positions []V.Vec, densities []float64, vector_field []V.Vec, force_field []V.Vec) {
 	for i := 0; i < len(positions); i++ {
 		//For Each Particle Calculate Kernel Based Summation
 		samples := p.Smplr.GetSamples(i)
 		dens := densities[i]
-		lap := float64(0.0)
+		lap := V.Vec{}
 		p.Kern.Adjust(dens / p.Part.D0())
 		mass := p.Part.Mass()
 
@@ -116,11 +116,13 @@ func (p SPHField) Laplacian(positions []V.Vec, scalar_field []float64, densities
 			if jIndex != i {
 				jDensity := densities[samples[j]]
 				dist := V.Dist(positions[i], positions[j])
-				lap += (mass / jDensity) * (scalar_field[j] - scalar_field[i]) * p.Kern.O2D(dist)
+				vecDif := V.Sub(vector_field[i], vector_field[j])
+				scaleVecDif := V.Scl(vecDif, (mass/jDensity)*p.Kern.O2D(dist))
+				lap = V.Add(lap, scaleVecDif)
 			}
 			//End Inner Loop
 		}
-		lap_field[i] += lap
+		force_field[i] = V.Add(force_field[i], lap)
 	} //End Particle Loop
 }
 
