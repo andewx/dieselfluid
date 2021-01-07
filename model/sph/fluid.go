@@ -4,9 +4,10 @@ package sph
 //for reuse with application specific SPH methods
 
 import (
-	V "dslfluid.com/dsl/math/math64" //Diesel Vector Library - Simple Vec
+	"dslfluid.com/dsl/geom"
+	V "dslfluid.com/dsl/math/math64"
 	"dslfluid.com/dsl/model"
-	F "dslfluid.com/dsl/model/field"
+	"dslfluid.com/dsl/model/field"
 	"math"
 )
 
@@ -26,14 +27,15 @@ type SPHSystem interface {
 
 //SPH Standard SPH Particle System - Implements SPHSystem Interface
 type SPHCore struct {
-	Pos    []V.Vec    //Positions
-	Dens   []float64  //Densities
-	Vels   []V.Vec    //Velocities
-	Fs     []V.Vec    //Forces
-	Ps     []float64  //Pressures
-	Time   float64    //Time Step
-	MaxVel float64    //Max Vel - Courant Condition
-	Field  F.SPHField //Gradient Differential Methods
+	Pos       []V.Vec         //Positions
+	Dens      []float64       //Densities
+	Vels      []V.Vec         //Velocities
+	Fs        []V.Vec         //Forces
+	Ps        []float64       //Pressures
+	Time      float64         //Time Step
+	MaxVel    float64         //Max Vel - Courant Condition
+	Field     field.SPHField  //Gradient Differential Methods
+	Colliders []geom.Collider //List of collidables
 }
 
 //-----------Implements SPHCore -----------------------------
@@ -109,7 +111,45 @@ func (p SPHCore) External(force V.Vec) {
 
 //Collide handles particle collision
 func (p SPHCore) Collide() {
+	for i := 0; i < len(p.Colliders); i++ {
+		for j := 0; j < len(p.GetPos()); j++ {
 
+			//Get Collisions for each point and calculate force
+			norm, _, point, collis := p.Colliders[i].Collision(p.GetPos()[j], p.GetVel()[j], p.TimeStep(), p.Field.Part.Rad())
+			//Sets new position and velocity
+			if collis {
+				v, _ := p.CalcCollision(j, norm)
+				p.GetPos()[j] = point
+				p.GetVel()[j] = v
+			}
+		}
+	}
+}
+
+//Collision Calculations returns Velocity (Vec32), Force (Vec32) Momentum Vector
+func (p SPHCore) CalcCollision(index int, norm V.Vec) (V.Vec, V.Vec) {
+	vel := p.GetVel()[index]
+	k_stiff := -0.25 //Restitution Coefficient. Further research req'd
+	friction := 0.01
+	velN := V.Scl(norm, V.Dot(norm, vel))
+	velTan := V.Sub(vel, velN)
+	dtVN := V.Scl(velN, (k_stiff - 1.0))
+	velN = V.Scl(velN, k_stiff)
+
+	//Compute friction coefficients
+	if V.Mag(velTan) > 0.0 {
+		fcomp := float64(1.0 - friction*V.Mag(dtVN)/V.Mag(velTan))
+		frictionScale := math.Max(fcomp, 0.0)
+		velTan = V.Scl(velTan, frictionScale)
+	}
+
+	nVelocity := V.Add(velN, velTan)
+
+	//Scale Force
+	forceNormal := V.Scl(velN, -p.Field.Part.Mass())
+	p.GetForce()[index] = forceNormal
+
+	return nVelocity, forceNormal
 }
 
 //Update updates all particle positions -- non-blocking mutex locked

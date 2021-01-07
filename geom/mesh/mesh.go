@@ -35,9 +35,7 @@ func InitMesh(vertices []Vec.Vec, origin Vec.Vec) Mesh {
 	return nMesh
 }
 
-//Given particle w/ velocity determine barycentric collisions and if a collision occurs
-//Rewrite Collider Code for recursive caller (if collision call again) //returns collision face index
-//When initially calling excludeFace should be -1 to avoid excluding any faces. Value is only tested against
+//Collision checks for collision with underlying mesh
 //Returns Normal, Barycentric Coords, Collision Point, Collision Bool
 func (g *Mesh) Collision(P Vec.Vec, V Vec.Vec, dt float64, r float64) (Vec.Vec, Vec.Vec, Vec.Vec, bool) {
 
