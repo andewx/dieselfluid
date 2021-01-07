@@ -12,16 +12,14 @@ import (
 
 //SPHSystem represents the core SPH iteration
 type SPHSystem interface {
-	GetPos() []V.Vec               //Getter
-	GetVel() []V.Vec               //Getter
-	GetDens() []float64            //Getter
-	GetForce() []V.Vec             //Getter
-	GetPress() []V.Vec             //Getter
-	TimeStep() float64             //Getter
-	UpdateTime() float64           //Update Time Delta
-	Length() int                   //Num Particles
-	Run() error                    //Runs SPH Computation Loop
-	Run_Threaded(t chan int) error //Runs SPH computation loop as thread
+	GetPos() []V.Vec     //Gette
+	GetVel() []V.Vec     //Getter
+	GetDens() []float64  //Getter
+	GetForce() []V.Vec   //Getter
+	GetPress() []V.Vec   //Getter
+	TimeStep() float64   //Getter
+	UpdateTime() float64 //Update Time Delta
+	Length() int         //Num Particles
 }
 
 //SPH Standard SPH Particle System - Implements SPHSystem Interface
