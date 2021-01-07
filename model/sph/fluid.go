@@ -5,6 +5,7 @@ package sph
 
 import (
 	"dslfluid.com/dsl/geom"
+	"dslfluid.com/dsl/math/math32"
 	V "dslfluid.com/dsl/math/math64"
 	"dslfluid.com/dsl/model/field"
 	"math"
@@ -12,19 +13,19 @@ import (
 
 //SPHSystem represents the core SPH iteration
 type SPHSystem interface {
-	GetPos() []V.Vec     //Gette
-	GetVel() []V.Vec     //Getter
-	GetDens() []float64  //Getter
-	GetForce() []V.Vec   //Getter
-	GetPress() []V.Vec   //Getter
-	TimeStep() float64   //Getter
-	UpdateTime() float64 //Update Time Delta
-	Length() int         //Num Particles
+	GetPos() []math32.Vec //Gette
+	GetVel() []V.Vec      //Getter
+	GetDens() []float64   //Getter
+	GetForce() []V.Vec    //Getter
+	GetPress() []V.Vec    //Getter
+	TimeStep() float64    //Getter
+	UpdateTime() float64  //Update Time Delta
+	Length() int          //Num Particles
 }
 
 //SPH Standard SPH Particle System - Implements SPHSystem Interface
 type SPHCore struct {
-	Pos       []V.Vec         //Positions
+	Pos       []math32.Vec    //Positions
 	Dens      []float64       //Densities
 	Vels      []V.Vec         //Velocities
 	Fs        []V.Vec         //Forces
@@ -36,7 +37,7 @@ type SPHCore struct {
 }
 
 //-----------Implements SPHCore -----------------------------
-func (p SPHCore) GetPos() []V.Vec {
+func (p SPHCore) GetPos() []math32.Vec {
 	return p.Pos
 }
 func (p SPHCore) GetVel() []V.Vec {

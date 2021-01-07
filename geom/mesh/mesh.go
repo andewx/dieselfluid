@@ -2,6 +2,7 @@ package mesh
 
 import (
 	T "dslfluid.com/dsl/geom/triangle"
+	"dslfluid.com/dsl/math/math32"
 	Vec "dslfluid.com/dsl/math/math64"
 	"fmt"
 )
@@ -37,7 +38,7 @@ func InitMesh(vertices []Vec.Vec, origin Vec.Vec) Mesh {
 
 //Collision checks for collision with underlying mesh
 //Returns Normal, Barycentric Coords, Collision Point, Collision Bool
-func (g *Mesh) Collision(P Vec.Vec, V Vec.Vec, dt float64, r float64) (Vec.Vec, Vec.Vec, Vec.Vec, bool) {
+func (g *Mesh) Collision(P math32.Vec, V Vec.Vec, dt float64, r float64) (Vec.Vec, Vec.Vec, math32.Vec, bool) {
 
 	VERTS := len(g.Vertexes)
 

@@ -1,6 +1,8 @@
 package triangle
 
 import (
+	"dslfluid.com/dsl/math"
+	"dslfluid.com/dsl/math/math32"
 	Vec "dslfluid.com/dsl/math/math64"
 )
 
@@ -25,7 +27,7 @@ func (tri *Triangle) Normal() Vec.Vec {
 }
 
 //Barycentric Collission Test returns float64 distance, bool collision detected
-func (t *Triangle) Collision(P *Vec.Vec) (Vec.Vec, bool) {
+func (t *Triangle) Collision(P Vec.Vec) (Vec.Vec, bool) {
 
 	//Measures if  a point projected into the triangles plane gives a barycentric coord
 	coord, isBarycentric := t.Barycentric(P)
@@ -34,15 +36,17 @@ func (t *Triangle) Collision(P *Vec.Vec) (Vec.Vec, bool) {
 }
 
 //Barycentric Focused Collision Test (returns Normal, Coords, CollisionPoint, Collision Bool)
-func (t *Triangle) BarycentricCollision(P Vec.Vec, V Vec.Vec, n Vec.Vec, dt float64, r float64) (Vec.Vec, Vec.Vec, Vec.Vec, bool) {
+func (t *Triangle) BarycentricCollision(P math32.Vec, V Vec.Vec, n Vec.Vec, dt float64, r float64) (Vec.Vec, Vec.Vec, math32.Vec, bool) {
 
 	if Vec.Mag(V) == 0 {
-		return n, Vec.Vec{}, Vec.Vec{}, false
+		return n, Vec.Vec{}, math32.Vec{}, false
 	}
+
+	p64 := math.Vec64(P)
 
 	t0 := *t.Verts[0]
 	//Take Care of Normal
-	v0 := Vec.Sub(t0, P)
+	v0 := Vec.Sub(t0, p64)
 
 	nDotRay := Vec.Dot(n, V)
 
@@ -52,9 +56,9 @@ func (t *Triangle) BarycentricCollision(P Vec.Vec, V Vec.Vec, n Vec.Vec, dt floa
 	}
 
 	d := Vec.Dot(v0, n)
-	k := (d) / (nDotRay)            //Project distance to velocity Vector
-	p0 := Vec.Add(P, Vec.Scl(V, k)) //Projection to the plane
-	dist := Vec.Mag(Vec.Sub(P, p0))
+	k := (d) / (nDotRay)              //Project distance to velocity Vector
+	p0 := Vec.Add(p64, Vec.Scl(V, k)) //Projection to the plane
+	dist := Vec.Mag(Vec.Sub(p64, p0))
 
 	//Check the P2 is crossed current plane
 	//- TODO SEE IF PROJECTED VELOCITY IS A BARYCENTRIC COLLISION
@@ -66,21 +70,21 @@ func (t *Triangle) BarycentricCollision(P Vec.Vec, V Vec.Vec, n Vec.Vec, dt floa
 	//Point Crossed the plane in a time step. We don't care about the actual collision point
 	//This needs to be scaled with velocity or time step needs to be decreased (dotp10 > 0 && dv0 < 0) ||
 	if dist <= r {
-		coord, collision := t.Barycentric(&P)
-		P = Vec.Add(P, Vec.Scl(V, -1.0*dt))
+		coord, collision := t.Barycentric(p64)
+		P = math.Vec32(Vec.Add(p64, Vec.Scl(V, -1.0*dt)))
 		return n, coord, P, collision
 	} else {
-		return n, Vec.Vec{}, Vec.Vec{}, false
+		return n, Vec.Vec{}, math32.Vec{}, false
 	}
 
 }
 
 //Project XY, XZ, YZ - Plane must be
-func (t *Triangle) Barycentric(p *Vec.Vec) (Vec.Vec, bool) {
+func (t *Triangle) Barycentric(p Vec.Vec) (Vec.Vec, bool) {
 
 	v0 := Vec.Sub(*t.Verts[1], *t.Verts[0])
 	v1 := Vec.Sub(*t.Verts[2], *t.Verts[0])
-	v2 := Vec.Sub(*p, *t.Verts[0])
+	v2 := Vec.Sub(p, *t.Verts[0])
 	d00 := Vec.Dot(v0, v0)
 	d01 := Vec.Dot(v0, v1)
 	d11 := Vec.Dot(v1, v1)
