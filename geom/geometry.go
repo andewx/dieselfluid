@@ -2,7 +2,7 @@ package geom
 
 //Global Interfaces List
 import (
-	Vec "dslfluid.com/dsl/math/math64"
+	Vec "dslfluid.com/dsl/math/math32"
 )
 
 //Particle Collider Interface Defines Particle Velocity Collisions with underlying object

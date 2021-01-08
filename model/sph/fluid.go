@@ -126,8 +126,8 @@ func (p SPHCore) Collide() {
 //Collision Calculations returns Velocity (Vec32), Force (Vec32) Momentum Vector
 func (p SPHCore) CalcCollision(index int, norm V.Vec) (V.Vec, V.Vec) {
 	vel := p.GetVel()[index]
-	k_stiff := -0.25 //Restitution Coefficient. Further research req'd
-	friction := 0.01
+	k_stiff := float32(-0.25) //Restitution Coefficient. Further research req'd
+	friction := float32(0.01)
 	velN := V.Scl(norm, V.Dot(norm, vel))
 	velTan := V.Sub(vel, velN)
 	dtVN := V.Scl(velN, (k_stiff - 1.0))
@@ -136,7 +136,7 @@ func (p SPHCore) CalcCollision(index int, norm V.Vec) (V.Vec, V.Vec) {
 	//Compute friction coefficients
 	if V.Mag(velTan) > 0.0 {
 		fcomp := float32(1.0 - friction*V.Mag(dtVN)/V.Mag(velTan))
-		frictionScale := math.Max(fcomp, 0.0)
+		frictionScale := float32(math.Max(float64(fcomp), 0.0))
 		velTan = V.Scl(velTan, frictionScale)
 	}
 
@@ -161,8 +161,8 @@ func (p SPHCore) Update() {
 	//Calculate Velocities Update Position / Clear Force
 	for i := 0; i < len(p.GetPos()); i++ {
 		a := V.Scl(forces[i], m)
-		vels[i] = V.Add(vels[i], V.Scl(a, ts))     //Apply Acceleration
-		pos[i] = V.Add(pos[i], V.Scl(vels[i], ts)) //Apply Velocity
+		vels[i] = V.Add(vels[i], V.Scl(a, float32(ts)))     //Apply Acceleration
+		pos[i] = V.Add(pos[i], V.Scl(vels[i], float32(ts))) //Apply Velocity
 		forces[i][0] = 0.0
 		forces[i][1] = 0.0
 		forces[i][2] = 0.0
