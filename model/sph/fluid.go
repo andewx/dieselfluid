@@ -5,59 +5,58 @@ package sph
 
 import (
 	"dslfluid.com/dsl/geom"
-	"dslfluid.com/dsl/math/math32"
-	V "dslfluid.com/dsl/math/math64"
+	V "dslfluid.com/dsl/math/math32"
 	"dslfluid.com/dsl/model/field"
 	"math"
 )
 
 //SPHSystem represents the core SPH iteration
 type SPHSystem interface {
-	GetPos() []math32.Vec //Gette
-	GetVel() []V.Vec      //Getter
-	GetDens() []float64   //Getter
-	GetForce() []V.Vec    //Getter
-	GetPress() []V.Vec    //Getter
-	TimeStep() float64    //Getter
-	UpdateTime() float64  //Update Time Delta
-	Length() int          //Num Particles
+	GetPos() []V.Vec     //Gette
+	GetVel() []V.Vec     //Getter
+	GetDens() []float32  //Getter
+	GetForce() []V.Vec   //Getter
+	GetPress() []V.Vec   //Getter
+	TimeStep() float32   //Getter
+	UpdateTime() float32 //Update Time Delta
+	Length() int         //Num Particles
 }
 
 //SPH Standard SPH Particle System - Implements SPHSystem Interface
 type SPHCore struct {
-	Pos       []math32.Vec    //Positions
-	Dens      []float64       //Densities
+	Pos       []V.Vec         //Positions
+	Dens      []float32       //Densities
 	Vels      []V.Vec         //Velocities
 	Fs        []V.Vec         //Forces
-	Ps        []float64       //Pressures
+	Ps        []float32       //Pressures
 	Time      float64         //Time Step
-	MaxVel    float64         //Max Vel - Courant Condition
+	MaxVel    float32         //Max Vel - Courant Condition
 	Field     field.SPHField  //Gradient Differential Methods
 	Colliders []geom.Collider //List of collidables
 }
 
 //-----------Implements SPHCore -----------------------------
-func (p SPHCore) GetPos() []math32.Vec {
+func (p SPHCore) GetPos() []V.Vec {
 	return p.Pos
 }
 func (p SPHCore) GetVel() []V.Vec {
 	return p.Vels
 }
-func (p SPHCore) GetDens() []float64 {
+func (p SPHCore) GetDens() []float32 {
 	return p.Dens
 }
 func (p SPHCore) GetForce() []V.Vec {
 	return p.Fs
 }
-func (p SPHCore) GetPress() []float64 {
+func (p SPHCore) GetPress() []float32 {
 	return p.Ps
 }
 func (p SPHCore) TimeStep() float64 {
 	return p.Time
 }
 func (p SPHCore) UpdateTime() float64 {
-	K := 0.4 * p.Field.Part.KernelRad() / p.Field.Part.Sound()
-	A := p.Field.Part.KernelRad() / p.MaxVel
+	K := float64(0.4 * p.Field.Part.KernelRad() / p.Field.Part.Sound())
+	A := float64(p.Field.Part.KernelRad() / p.MaxVel)
 
 	if A < K {
 		p.Time = A
@@ -85,7 +84,7 @@ func (p SPHCore) AccumulatePressure() int {
 	for i := 0; i < len(pressures); i++ {
 		psi := p.Field.Part.MapEOS(densities[i])
 		pressures[i] = psi
-		if math.IsNaN(psi) {
+		if math.IsNaN(float64(psi)) {
 			retVal = -1
 			pressures[i] = 0
 		}
@@ -136,7 +135,7 @@ func (p SPHCore) CalcCollision(index int, norm V.Vec) (V.Vec, V.Vec) {
 
 	//Compute friction coefficients
 	if V.Mag(velTan) > 0.0 {
-		fcomp := float64(1.0 - friction*V.Mag(dtVN)/V.Mag(velTan))
+		fcomp := float32(1.0 - friction*V.Mag(dtVN)/V.Mag(velTan))
 		frictionScale := math.Max(fcomp, 0.0)
 		velTan = V.Scl(velTan, frictionScale)
 	}

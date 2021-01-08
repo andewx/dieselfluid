@@ -1,9 +1,7 @@
 package triangle
 
 import (
-	"dslfluid.com/dsl/math"
-	"dslfluid.com/dsl/math/math32"
-	Vec "dslfluid.com/dsl/math/math64"
+	Vec "dslfluid.com/dsl/math/math32"
 )
 
 //Define Geometry Type Structures
@@ -36,17 +34,15 @@ func (t *Triangle) Collision(P Vec.Vec) (Vec.Vec, bool) {
 }
 
 //Barycentric Focused Collision Test (returns Normal, Coords, CollisionPoint, Collision Bool)
-func (t *Triangle) BarycentricCollision(P math32.Vec, V Vec.Vec, n Vec.Vec, dt float64, r float64) (Vec.Vec, Vec.Vec, math32.Vec, bool) {
+func (t *Triangle) BarycentricCollision(P Vec.Vec, V Vec.Vec, n Vec.Vec, dt float64, r float32) (Vec.Vec, Vec.Vec, Vec.Vec, bool) {
 
 	if Vec.Mag(V) == 0 {
-		return n, Vec.Vec{}, math32.Vec{}, false
+		return n, Vec.Vec{}, Vec.Vec{}, false
 	}
-
-	p64 := math.Vec64(P)
 
 	t0 := *t.Verts[0]
 	//Take Care of Normal
-	v0 := Vec.Sub(t0, p64)
+	v0 := Vec.Sub(t0, P)
 
 	nDotRay := Vec.Dot(n, V)
 
@@ -56,9 +52,9 @@ func (t *Triangle) BarycentricCollision(P math32.Vec, V Vec.Vec, n Vec.Vec, dt f
 	}
 
 	d := Vec.Dot(v0, n)
-	k := (d) / (nDotRay)              //Project distance to velocity Vector
-	p0 := Vec.Add(p64, Vec.Scl(V, k)) //Projection to the plane
-	dist := Vec.Mag(Vec.Sub(p64, p0))
+	k := (d) / (nDotRay)            //Project distance to velocity Vector
+	p0 := Vec.Add(P, Vec.Scl(V, k)) //Projection to the plane
+	dist := Vec.Mag(Vec.Sub(P, p0))
 
 	//Check the P2 is crossed current plane
 	//- TODO SEE IF PROJECTED VELOCITY IS A BARYCENTRIC COLLISION
@@ -70,11 +66,11 @@ func (t *Triangle) BarycentricCollision(P math32.Vec, V Vec.Vec, n Vec.Vec, dt f
 	//Point Crossed the plane in a time step. We don't care about the actual collision point
 	//This needs to be scaled with velocity or time step needs to be decreased (dotp10 > 0 && dv0 < 0) ||
 	if dist <= r {
-		coord, collision := t.Barycentric(p64)
-		P = math.Vec32(Vec.Add(p64, Vec.Scl(V, -1.0*dt)))
+		coord, collision := t.Barycentric(P)
+		P = Vec.Add(P, Vec.Scl(V, -1.0*float32(dt)))
 		return n, coord, P, collision
 	} else {
-		return n, Vec.Vec{}, math32.Vec{}, false
+		return n, Vec.Vec{}, Vec.Vec{}, false
 	}
 
 }

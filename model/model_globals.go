@@ -38,84 +38,84 @@ const SPH_EOS_INF = -1
 
 //Particle Interface
 type Particle interface {
-	D0() float64              //Target float64
-	MapEOS(d float64) float64 //Maps float64
-	KernelVolume() float64    //Kernel Volume
-	KernelRad() float64       //Kernel Radius
-	Rad() float64             //Particle Radius
-	Vol() float64             //Particle Volume
-	Stiffness() float64       //Stifness Constant
-	Gamma() float64           //Gamma Constant
-	Sound() float64           //Speed of Sound
+	D0() float32              //Target float32
+	MapEOS(d float32) float32 //Maps float32
+	KernelVolume() float32    //Kernel Volume
+	KernelRad() float32       //Kernel Radius
+	Rad() float32             //Particle Radius
+	Vol() float32             //Particle Volume
+	Stiffness() float32       //Stifness Constant
+	Gamma() float32           //Gamma Constant
+	Sound() float32           //Speed of Sound
 	Type() int                //Particle Type
-	Mass() float64
+	Mass() float32
 }
 
 //Defines General Particle Parameters - Implements Particle
 type SPHParticle struct {
-	Ms      float64
-	Dens    float64
-	Radius  float64
-	KrnlRad float64
-	EosK    float64
-	EosG    float64
-	Sos     float64
+	Ms      float32
+	Dens    float32
+	Radius  float32
+	KrnlRad float32
+	EosK    float32
+	EosG    float32
+	Sos     float32
 	Enum    int
 }
 
 //-----------Implements SPH PARTICLE ------------------------//
 
-func (p SPHParticle) D0() float64 {
+func (p SPHParticle) D0() float32 {
 	return p.Dens
 }
 
-func (p SPHParticle) Mass() float64 {
+func (p SPHParticle) Mass() float32 {
 	return p.Ms
 }
 
-//MapEOS maps a particle float64 to float64
-func (p SPHParticle) MapEOS(d float64) float64 {
+//MapEOS maps a particle float32 to float32
+func (p SPHParticle) MapEOS(d float32) float32 {
 	if d < p.Dens {
 		d = p.Dens
 	}
 	R := d / p.Dens
-	return float64(p.Stiffness() * (math.Pow(float64(R), p.EosG) - 1.0))
+	return p.Stiffness() * float32(math.Pow(float64(R), float64(p.EosG))-1.0)
 }
 
 //Kernel Volume Returns kernel Volume
-func (p SPHParticle) KernelVolume() float64 {
+func (p SPHParticle) KernelVolume() float32 {
 	d := 2 * p.KrnlRad
 	return d * d * d
 }
 
 //Kernel Rad returns Particle Kernel Radius
-func (p SPHParticle) KernelRad() float64 {
+func (p SPHParticle) KernelRad() float32 {
 	return p.KrnlRad
 }
 
 //Rad returns the particle radius
-func (p SPHParticle) Rad() float64 {
+func (p SPHParticle) Rad() float32 {
 	return p.Radius
 }
 
 //Vol returns particle volume
-func (p SPHParticle) Vol() float64 {
+func (p SPHParticle) Vol() float32 {
 	d := 2 * p.Radius
 	return d * d * d
 }
 
 //Stiffness return Eos equation K Parameter
-func (p SPHParticle) Stiffness() float64 {
-	return (float64(p.Dens) * p.EosK) / p.EosG
+func (p SPHParticle) Stiffness() float32 {
+	return (float32(p.Dens) * p.EosK) / p.EosG
 }
 
 //Gamma returns particle Eos equation gamma
-func (p SPHParticle) Gamma() float64 {
+func (p SPHParticle) Gamma() float32 {
 	return p.EosG
 }
 
 //Sound returns speed of sound
-func (p SPHParticle) Sound() float64 {
+func (p SPHParticle) Sound() float32 {
 	return p.Sos
 }
 
@@ -125,10 +125,10 @@ func (p SPHParticle) Type() int {
 
 //SPHParticle returns new SPHParticle with water parameters given particle radius
 //under the Weak EOS Equation K = 1 G = 1
-func Build_SPHParticle(rad float64) SPHParticle {
+func Build_SPHParticle(rad float32) SPHParticle {
 	return SPHParticle{1.0, 1000, rad, 1.5 * rad, 1, 1, 4800, 0}
 }
 
-func Build_SPHParticle0(rad float64, stiff float64, gamma float64, sound float64) SPHParticle {
+func Build_SPHParticle0(rad float32, stiff float32, gamma float32, sound float32) SPHParticle {
 	return SPHParticle{1.0, 1000, rad, 1.5 * rad, stiff, gamma, sound, 0}
 }

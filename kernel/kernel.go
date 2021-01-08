@@ -1,14 +1,14 @@
 package kernel
 
-import V "dslfluid.com/dsl/math/math64"
+import V "dslfluid.com/dsl/math/math32"
 
 type Kernel interface {
-	F(x float64) float64
-	O1D(x float64) float64
-	O2D(x float64) float64
-	H() float64  //Smoothing Length
-	H0() float64 //Adaptive Smoothing Length
-	Adjust(ratio float64) float64
-	Grad(x float64, dir V.Vec) V.Vec
-	W0() float64
+	F(x float32) float32
+	O1D(x float32) float32
+	O2D(x float32) float32
+	H() float32  //Smoothing Length
+	H0() float32 //Adaptive Smoothing Length
+	Adjust(ratio float32) float32
+	Grad(x float32, dir V.Vec) V.Vec
+	W0() float32
 }
