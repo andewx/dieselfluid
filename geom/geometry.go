@@ -11,5 +11,5 @@ import (
 type Collider interface {
 	//Collision takes a (Position, Velocity, Delta Time, Particle Radius)
 	//Outputs: Normal, Barycentric Coords, Collision Point, Collision Bool
-	Collision(P math32.Vec, V Vec.Vec, dt float64, r float32) (Vec.Vec, Vec.Vec, Vec.Vec, bool)
+	Collision(P Vec.Vec, V Vec.Vec, dt float64, r float32) (Vec.Vec, Vec.Vec, Vec.Vec, bool)
 }

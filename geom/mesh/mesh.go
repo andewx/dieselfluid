@@ -37,7 +37,7 @@ func InitMesh(vertices []Vec.Vec, origin Vec.Vec) Mesh {
 
 //Collision checks for collision with underlying mesh
 //Returns Normal, Barycentric Coords, Collision Point, Collision Bool
-func (g *Mesh) Collision(P math32.Vec, V Vec.Vec, dt float64, r float32) (Vec.Vec, Vec.Vec, Vec.Vec, bool) {
+func (g *Mesh) Collision(P Vec.Vec, V Vec.Vec, dt float64, r float32) (Vec.Vec, Vec.Vec, Vec.Vec, bool) {
 
 	VERTS := len(g.Vertexes)
 
@@ -65,7 +65,7 @@ func (g *Mesh) PrintNormals() {
 }
 
 //Triangle Mesh Box with 12 Triangles // 36 Vertexes
-func Box(w float64, h float64, d float64, o Vec.Vec) Mesh {
+func Box(w float32, h float32, d float32, o Vec.Vec) Mesh {
 	const TRIANGLES = 12
 	var Verts = make([]Vec.Vec, 12*3)
 
