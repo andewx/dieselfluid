@@ -57,6 +57,10 @@ func (p WCSPH) Run_(t chan int) {
 					sync = true
 				}
 			}
+			
+			if status == model.THREAD_GO{
+				sync = true
+			}
 			//End Thread Blocking
 		}
 
