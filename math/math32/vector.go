@@ -33,6 +33,10 @@ func Scl(a Vec, k float32) Vec {
 	return Vec{a[0] * k, a[1] * k, a[2] * k}
 }
 
+func VecScl(a Vec, b Vec) Vec {
+	return Vec{a[0] * b[0], a[1] * b[1], a[2] * b[2]}
+}
+
 //Computes Dot Product A * B
 func Dot(a Vec, b Vec) float32 {
 	return a[0]*b[0] + a[1]*b[1] + a[2]*b[2]

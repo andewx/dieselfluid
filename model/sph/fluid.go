@@ -5,6 +5,7 @@ package sph
 
 import (
 	"dslfluid.com/dsl/geom"
+	"dslfluid.com/dsl/geom/grid"
 	V "dslfluid.com/dsl/math/math32"
 	"dslfluid.com/dsl/model/field"
 	"math"
@@ -33,6 +34,45 @@ type SPHCore struct {
 	MaxVel    float32         //Max Vel - Courant Condition
 	Field     field.SPHField  //Gradient Differential Methods
 	Colliders []geom.Collider //List of collidables
+}
+
+//Map 3D Index - maps a 3D I,J,K position to 1D flattened array
+func Map3DIndex(i int, j int, k int, i_w int, j_w int) int {
+	return (k * i_w * j_w) + (k * i_w) + i
+}
+
+//---------- Build SPH Core Structure On Grid -----------//
+func BuildSPHCube(Scale V.Vec, TransOrigin V.Vec, f field.SPHField, colliders []geom.Collider) SPHCore {
+
+	//Build The Kernel Grid Structure
+	grid, dim := grid.BuildKernGrid(Scale, TransOrigin, f.Kern.H()) //Builds Grid Based On Kernel Size (dimenionality of grid cube depends on kernel)
+	core := SPHCore{}
+	num := dim * dim * dim
+
+	//Make Vectors
+	core.Pos = make([]V.Vec, num)
+	core.Dens = make([]float32, num)
+	core.Vels = make([]V.Vec, num)
+	core.Fs = make([]V.Vec, num)
+	core.Ps = make([]float32, num)
+
+	//Set Vars
+	core.Field = f
+	core.UpdateTime()
+	core.Colliders = colliders
+
+	//Update Positions -- Spacing Based on Kernel
+	for i := 0; i < num; i++ {
+		for j := 0; j < num; j++ {
+			for k := 0; k < num; k++ {
+				nPos := grid.GridPosition(i, j, k)
+				index := Map3DIndex(i, j, k, dim, dim)
+				core.Pos[index] = nPos
+			}
+		}
+	}
+
+	return core
 }
 
 //-----------Implements SPHCore -----------------------------
