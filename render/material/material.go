@@ -1,9 +1,18 @@
 package render
 
-type MaterialObject struct {
-	ObjectKey  string     //Map name should correspond to all assignments (Vertex, Indice, Tex Buffers)
-	ShaderKey  string     //GLSL Shader Key
-	ColorRGB   [3]float32 //Object Color
-	TextureKey string     //Texture Object Key
-	DrawType   uint32     //User defined draw type - 0 - 3DPoint, 1 - 3DTriangle ... ...
+type TexMaterial struct {
+	Name      string
+	Type      string
+	UVIndex   int
+	FilePath  string
+	TextureID string
+}
+type Material struct {
+	Name       string
+	ShaderID   string
+	Textures   []TexMaterial
+	Diffuse    [3]float32
+	Specular   [3]float32
+	Glossiness float32
+	Opacity    float32
 }

@@ -1,4 +1,4 @@
-package render
+package glr
 
 import (
 	V "dslfluid.com/dsl/math/math32"
@@ -38,8 +38,7 @@ type GLTransforms struct {
 
 //Defines Application Global Parameters
 type GLAppState struct {
-	Translation     *V.Vec
-	GLCamera        *Camera
+	LocalMat        [16]float32
 	RotX            float32
 	RotY            float32
 	FPS             float64
@@ -195,7 +194,7 @@ func (glRender *GLRenderer) Init() error {
 
 //Draw rendering routine fundamentally recognizes that a VBO draw VAO draw routine
 //Is attached by key map name to a specific shader program all vertex buffers are drawn
-//With associated shader routines
+//With associated shader routines - should iteratively draw meshes
 func (glRender *GLRenderer) Draw() error {
 
 	return nil
