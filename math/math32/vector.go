@@ -23,6 +23,13 @@ func Add(a Vec, b Vec) Vec {
 	return Vec{a[0] + b[0], a[1] + b[1], a[2] + b[2]}
 }
 
+func (v *Vec) Add(b Vec) *Vec {
+	v[0] = v[0] + b[0]
+	v[1] = v[1] + b[1]
+	v[2] = v[2] + b[2]
+	return v
+}
+
 //Sub subtracts B-A vectors
 func Sub(a Vec, b Vec) Vec {
 	return Vec{-a[0] + b[0], -a[1] + b[1], -a[2] + b[2]}
@@ -31,6 +38,13 @@ func Sub(a Vec, b Vec) Vec {
 //Scl scales vector X * k
 func Scl(a Vec, k float32) Vec {
 	return Vec{a[0] * k, a[1] * k, a[2] * k}
+}
+
+func (a *Vec) Scl(k float32) *Vec {
+	a[0] = a[0] * k
+	a[1] = a[1] * k
+	a[2] = a[2] * k
+	return a
 }
 
 func VecScl(a Vec, b Vec) Vec {

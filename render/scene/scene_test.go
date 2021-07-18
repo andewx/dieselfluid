@@ -8,7 +8,7 @@ import (
 
 func TestGLTFImport(t *testing.T) {
 
-	myScene := InitDSLScene("/Users/briananderson/go/src/github.com/andewx/dslfluid/resources/Minimal.gltf")
+	myScene := InitDSLScene("Minimal.gltf", 1024.0, 720.0)
 	err := myScene.ImportGLTF()
 
 	if err != nil {
@@ -219,31 +219,6 @@ func TestGLTFImport(t *testing.T) {
 	} // End test internal
 
 } //End Func
-
-func TestGLTFURI(t *testing.T) {
-	fmt.Printf("-------TEST: GLTF URI LOAD------------\n")
-	baseURL := "/Users/briananderson/go/src/github.com/andewx/dslfluid/resources/"
-	myScene := InitDSLScene(baseURL + "Minimal.gltf")
-	err := myScene.ImportGLTF()
-
-	if err != nil {
-		t.Errorf("Failed to load GLTF file from %s\n", myScene.Filepath)
-	} else {
-
-		//----------------------Retrieve URI --------------------------
-		buffers := myScene.Root.Buffers
-		for i := 0; i < len(buffers); i++ {
-			uri := buffers[i].Uri
-			bLength := buffers[i].ByteLength
-			bErr := myScene.LoadURIBuffer(baseURL+uri, i, bLength)
-			if bErr != nil {
-				t.Errorf("Error loading buffer data see log for more details\n")
-			} else {
-				fmt.Printf("Loaded %d kB from URI...\n", bLength/1024)
-			}
-		}
-	}
-}
 
 func TestGLTFBuffer(t *testing.T) {
 

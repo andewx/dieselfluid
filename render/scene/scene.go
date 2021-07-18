@@ -3,7 +3,9 @@ package scene //dslfluid.com/dsl/render
 import "io/ioutil"
 import "log"
 import "dslfluid.com/dsl/gltf"
+import "dslfluid.com/dsl/render/camera"
 import "fmt"
+import "dslfluid.com/dsl/math/math32"
 
 /* dslfluid scenes are handled and managed by their GLTF Schema */
 
@@ -11,25 +13,68 @@ import "fmt"
 //these indices are the top level elements available to the glTF array
 
 type DSLScene struct {
-	Root     *gltf.GlTF
-	Filepath string
-	Buffers  []*[]byte
+	Root      *gltf.GlTF
+	Filepath  string
+	Buffers   []*[]byte
+	BaseURI   string
+	Cam       camera.Camera
+	Model     math32.Mat4
+	View      math32.Mat4
+	RotX      math32.Mat3
+	RotY      math32.Mat3
+	Rot0      math32.Mat4
+	Rot1      math32.Mat4
+	RotOrigin math32.Vec
 }
 
 //InitDSLScene Creates empty DSLScene struct
-func InitDSLScene(filepath string) DSLScene {
-	return DSLScene{&gltf.GlTF{}, filepath, nil}
+func InitDSLScene(filepath string, w float32, h float32) DSLScene {
+	model := math32.Identity4()
+	view := math32.Identity4()
+	rotX := math32.Identity3()
+	rotY := math32.Identity3()
+	rot0 := math32.Identity4()
+	rot1 := math32.Identity4()
+	orig := math32.Vec{}
+	return DSLScene{&gltf.GlTF{}, filepath, nil, "/Users/briananderson/go/src/github.com/andewx/dslfluid/resources/",
+		camera.InitCamera(w, h), model, view, rotX, rotY, rot0, rot1, orig}
 }
 
-/*ImportGLTF () reads scene graph of the GLTF node object*/
+/*
+ImportGLTF () reads scene graph of the GLTF node object and sets up a few properties
+for the scene such as the camera and Buffers
+*/
 func (scene *DSLScene) ImportGLTF() error {
 
-	content, err := ioutil.ReadFile(scene.Filepath)
+	content, err := ioutil.ReadFile(scene.BaseURI + scene.Filepath)
 	if err != nil {
 		log.Fatal(err)
 	}
 	scene.Root.UnmarshalJSON(content)
 	scene.Buffers = make([]*[]byte, len(scene.Root.Buffers))
+
+	//----------------------Retrieve URIS --------------------------
+	buffers := scene.Root.Buffers
+	for i := 0; i < len(buffers); i++ {
+		uri := buffers[i].Uri
+		bLength := buffers[i].ByteLength
+		bErr := scene.LoadURIBuffer(scene.BaseURI+uri, i, bLength) //Need specify if URI is absolute or relative or deconstruct filepath
+		if bErr != nil {
+			return fmt.Errorf("Unable to load URI\nError Message %s", bErr.Error())
+		} else {
+			fmt.Printf("Loaded %d kB from URI...\n", bLength/1024)
+		}
+	}
+
+	//-------------------Load In Camera Node Property------------------------//
+	nodes := scene.GetNodes()
+	for i := 0; i < len(nodes); i++ {
+		thisNode := nodes[i]
+		if thisNode.Name == "camera" {
+			scene.Cam.Node = thisNode
+		}
+	}
+
 	return nil
 }
 

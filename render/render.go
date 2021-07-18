@@ -32,14 +32,11 @@ type Context struct {
 	FragShaderID        map[string]uint32
 	VertShaderID        map[string]uint32
 	ProgramID           map[string]uint32
-	ShaderUniforms      map[string]uint32
+	ShaderUniforms      map[string]int32
 
 	//Vertex Buffers / Indice Buffers
-	Vertexes map[string][]float32
-	Indices  map[string][]uint32
-	VBO      map[string]uint32
-	VAO      map[string]uint32
-	IBO      map[string]uint32
+	VBO []uint32
+	VAO []uint32
 }
 
 //Renderer API Call Context
