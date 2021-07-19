@@ -11,14 +11,17 @@ This version of Diesel SPH is still in development and is not yet build ready.
 
 # OVERVIEW
 
-Diesel SPH develops a fluid modeling framework in Go language. Allows for scene construction with both Grid/Particle/Hybrid Model Solvers. It supports a software CPU simulations, but also supports a HTTP initialization fluid exchange format so that GPU applications can access initialized fluid data Structures
-in order to run GPU based fluid computation.
+Diesel SPH develops a fluid modeling framework in Go language. Allows for scene construction with both Grid/Particle/Hybrid Model Solvers. It supports a software CPU simulation / GPU Simulations as well and is compatible with the versatile glTF
+Scene description format, and even extends this format with added extensions for
+loading fluid frames & geometry descriptors into scenes.
+
+DslFluid also comes with its own render packages which can be used in other go
+projects as part of this open source project. See the ```render/glr``` package
+for the main rendering methods. 
 
 ## External Dependencies:
 Go-Gl
 Go GLFW
-GoNum
-PBRT
 
 ## Primary Requirements
 - Go CPU Grid/SPH/Hybrid Solver w/ OpenGL support
