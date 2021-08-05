@@ -1,85 +1,82 @@
 package glr
 
 import (
-	V "dslfluid.com/dsl/math/math32"
+	"dslfluid.com/dsl/math/mgl"
 	"dslfluid.com/dsl/render"
+	"dslfluid.com/dsl/render/camera"
 	"dslfluid.com/dsl/render/scene"
 	"fmt"
-	"github.com/go-gl/gl/v3.3-core/gl"
+	"github.com/go-gl/gl/v4.1-core/gl"
 	"github.com/go-gl/glfw/v3.3/glfw"
 	"io/ioutil"
-	"log"
-	"math"
-	"runtime"
 	"strings"
 	"time"
 )
 
 //Implements  RenderAPIContext & Renderer Interface in float32 Env
 const (
-	CtxVarSize = 10
+	MIN_PARAM_SIZE    = 10
+	COORDS_PER_VERTEX = 3
+	BYTES_PER_FLOAT   = 4
+	BYTES_PER_SHORT   = 2
 )
-
-var GlobalTrans *V.Vec
-var RotateTime time.Time
-var RotateTimeLast time.Time
-var state_hold_mouse bool
-var xT float64
-var yT float64
-var RotAngleX float32
-var RotAngleY float32
-var Fps float64
-var lastTime time.Time
-var animationTime float64
 
 //GLRenderer Holds RenderAPIContext Vars
 type GLRenderer struct {
-	GLCTX    render.Context
-	GLHandle *glfw.Window
-	GLScene  scene.DSLScene
+	GLCTX         render.Context      //Maps paramaters and State
+	GLHandle      *glfw.Window        //Holds GLFW Window
+	GLScene       scene.DSLScene      //GLTF JSON
+	RenderObjects []*GLTFRenderObject //Render Description
+	MVPMat        []float32
+	VAO           uint32
+	VBO           []uint32
+	Indices       []uint16
 }
+
+type GLTFRenderObject struct {
+	Indices         []byte //Short 2 Bytes * 1
+	IndexByteOffset int
+	IndexByteLength int
+	IndexBufferId   uint32
+
+	Vertices         []byte //Float 4 Bytes * 3
+	VertexByteOffset int
+	VertexByteLength int
+	VertexBufferId   uint32
+
+	Normals           []byte //Float 4 Bytes * 3
+	NormalsByteOffset int
+	NormalsByteLength int
+	NormalsBufferId   uint32
+
+	//Model Matrix
+	Model []float32
+}
+
+//Render State Global State Structure
+type RenderGlobal struct {
+	MVPMatrix      []float32
+	Camera         camera.Camera
+	Translate      mgl.Vec
+	MousePosition  [2]int
+	TimeLast       time.Time
+	MouseStateHold bool
+	KeyPressed     int
+	delT           float32
+	XT             float64
+	YT             float64
+	CamRotY        float32
+	CamRotX        float32
+	RotateTime     time.Time
+	RotateTimeLast time.Time
+}
+
+var RenderState *RenderGlobal = new(RenderGlobal)
 
 func InitRenderer() GLRenderer {
-	return GLRenderer{render.Context{}, nil, scene.DSLScene{}}
-}
+	RenderState.Camera = camera.NewCamera(mgl.Vec{0, 0, 10})
+	return GLRenderer{}
 
-//Defines Application Global Parameters
-type GLAppState struct {
-	LocalMat        [16]float32
-	RotX            float32
-	RotY            float32
-	FPS             float64
-	TimeLast        time.Time
-	ApplicationTime float64
-	MouseStateHold  bool
-}
-
-func checkError(err error) bool {
-	if err != nil {
-		fmt.Printf(err.Error())
-		return true
-	}
-	return false
-}
-
-func compileShader(source string, shaderType uint32) (uint32, error) {
-	shader := gl.CreateShader(shaderType)
-	csources, free := gl.Strs(source)
-	gl.ShaderSource(shader, 1, csources, nil)
-	gl.CompileShader(shader)
-
-	var status int32
-	gl.GetShaderiv(shader, gl.COMPILE_STATUS, &status)
-	if status == gl.FALSE {
-		var logLength = int32(1000)
-		fmt.Printf("Log length %d\n", logLength)
-		log := strings.Repeat("\x00", int(logLength+1))
-		gl.GetShaderInfoLog(shader, logLength, nil, gl.Str(log))
-		fmt.Printf("%s", log)
-		return 0, fmt.Errorf("GLSL Shader failed to compile\n: %v", log)
-	}
-	free()
-	return shader, nil
 }
 
 //Setup Calls Window Context -- After setting up GLRenderer you should pass in relevant
@@ -89,64 +86,38 @@ func (glRender *GLRenderer) Setup(filepath string, width float32, height float32
 
 	//Initialize the render contexts
 	newContext := render.Context{}
-	runtime.LockOSThread()
 
-	fmt.Printf("glfw.Init()\n")
-	err := glfw.Init()
-	if err != nil {
-		fmt.Printf("Error glfw.Init() %s\n", err)
-		panic(err)
+	if len(glRender.MVPMat) == 0 {
+		glRender.MVPMat = make([]float32, 16)
+		glRender.MVPMat = mgl.ProjectionMatF(100.0, 1.0, 1000)
 	}
 
 	//Still Need Camera Location and Matrix Identities as well as animation params
-	newContext.VertexShaderPaths = make(map[string]string, CtxVarSize)
-	newContext.FragmentShaderPaths = make(map[string]string, CtxVarSize)
-	newContext.ShaderPrograms = make(map[string]uint32, CtxVarSize)
-	newContext.FragShaderID = make(map[string]uint32, CtxVarSize)
-	newContext.VertShaderID = make(map[string]uint32, CtxVarSize)
-	newContext.VBO = nil
-	newContext.VAO = nil
-	newContext.ProgramID = make(map[string]uint32, CtxVarSize)
-	newContext.ShaderUniforms = make(map[string]int32, CtxVarSize)
-	newContext.VertexShaderPaths["default"] = "/Users/briananderson/go/src/github.com/andewx/dslfluid/shader/glsl/geom.vert"
-	newContext.FragmentShaderPaths["default"] = "/Users/briananderson/go/src/github.com/andewx/dslfluid/shader/glsl/geom.frag"
+	newContext.VertexShaderPaths = make(map[string]string, MIN_PARAM_SIZE)
+	newContext.FragmentShaderPaths = make(map[string]string, MIN_PARAM_SIZE)
+	newContext.FragShaderID = make(map[string]uint32, MIN_PARAM_SIZE)
+	newContext.VertShaderID = make(map[string]uint32, MIN_PARAM_SIZE)
+	newContext.ProgramID = make(map[string]uint32, MIN_PARAM_SIZE)
+	newContext.ShaderUniforms = make(map[string]int32, MIN_PARAM_SIZE)
+	newContext.VertexShaderPaths["default"] = "/Users/andewx/go/src/github.com/andewx/dieselfluid/shader/glsl/geom.vert"
+	newContext.FragmentShaderPaths["default"] = "/Users/andewx/go/src/github.com/andewx/dieselfluid/shader/glsl/geom.frag"
 
 	glRender.GLCTX = newContext
 	fmt.Printf("Initiating DSL Scene\n")
-	glRender.GLScene = scene.InitDSLScene(filepath, width, height)
+	glRender.GLScene = scene.InitDSLScene("/Users/andewx/go/src/github.com/andewx/dieselfluid/resources/", filepath, width, height)
 	glRender.GLScene.ImportGLTF()
 	fmt.Printf("Scene Loaded\n")
 	fmt.Printf("Accessors(%d)\n", len(glRender.GLScene.GetAccessors()))
 
-	defer glfw.Terminate()
+	/*	glRender.GLHandle.SetMouseButtonCallback(ProcessMouse)
+		glRender.GLHandle.SetCursorPosCallback(ProcessCursor)
+	*/
 
-	glfw.WindowHint(glfw.Resizable, glfw.False)
-	glfw.WindowHint(glfw.ContextVersionMajor, 4) // OR 2
-	glfw.WindowHint(glfw.ContextVersionMinor, 1)
-	glfw.WindowHint(glfw.OpenGLProfile, glfw.OpenGLCoreProfile)
-	glfw.WindowHint(glfw.OpenGLForwardCompatible, glfw.True)
-	fmt.Printf("Creating Window\n...\n")
-	window, err := glfw.CreateWindow(640, 400, "DSL Fluid", nil, nil)
-	fmt.Printf("Window Created...\n")
-	glRender.GLHandle = window
-	checkError(err)
-	window.MakeContextCurrent()
-
-	if err := gl.Init(); err != nil {
-		log.Fatalln(err)
-	}
-
-	version := gl.GoStr(gl.GetString(gl.VERSION))
-	fmt.Println("OpenGL version", version)
-
-	window.SetKeyCallback(ProcessInput)
-	window.SetMouseButtonCallback(ProcessMouse)
-	window.SetCursorPosCallback(ProcessCursor)
 }
 
-func (glRender *GLRenderer) Init() error {
-	vtxSources := make(map[string]string, CtxVarSize)
-	frgSources := make(map[string]string, CtxVarSize)
+func (glRender *GLRenderer) CompileShaders() error {
+	vtxSources := make(map[string]string, MIN_PARAM_SIZE)
+	frgSources := make(map[string]string, MIN_PARAM_SIZE)
 
 	for key, path := range glRender.GLCTX.VertexShaderPaths {
 		srcVertex, err := ioutil.ReadFile(path)
@@ -168,6 +139,7 @@ func (glRender *GLRenderer) Init() error {
 
 	//Read-In All Vertex Shaders
 	fmt.Printf("COMPILING VERTEX SHADERS\n")
+
 	for key, source := range vtxSources {
 
 		vtxSHO, err := compileShader(source, gl.VERTEX_SHADER)
@@ -181,7 +153,7 @@ func (glRender *GLRenderer) Init() error {
 	//Read In All Fragment Shaders
 	fmt.Printf("COMPILING FRAG SHADERS\n")
 	for key, source := range frgSources {
-		frgSHO, err := compileShader(source, gl.VERTEX_SHADER)
+		frgSHO, err := compileShader(source, gl.FRAGMENT_SHADER)
 		if checkError(err) {
 			fmt.Printf("Could not compile frag\n")
 		}
@@ -193,103 +165,184 @@ func (glRender *GLRenderer) Init() error {
 	gl.AttachShader(prog1, glRender.GLCTX.VertShaderID["default"])
 	gl.AttachShader(prog1, glRender.GLCTX.FragShaderID["default"])
 	gl.LinkProgram(prog1)
-	gl.UseProgram(prog1)
+
+	var logLength = int32(1000)
+	fmt.Printf("Log length %d\n", logLength)
+	log := strings.Repeat("\x00", int(logLength+1))
+	gl.GetProgramInfoLog(prog1, logLength, nil, gl.Str(log))
+	fmt.Printf("%s", log)
+
+	active := int32(0)
+	gl.GetProgramiv(prog1, gl.ACTIVE_UNIFORMS, &active)
+	fmt.Printf("Active Unifroms count %d\n", active)
 	glRender.GLCTX.ProgramID["default"] = prog1
 
-	//Initialize Scene and Assign Camera projection and vars
+	//Initialize Scene and Assign Camera projection and var
+	glRender.GLCTX.ShaderUniforms["mvp"] = gl.GetUniformLocation(prog1, gl.Str("mvp\x00"))
 	glRender.GLCTX.ShaderUniforms["model"] = gl.GetUniformLocation(prog1, gl.Str("model\x00"))
-	glRender.GLCTX.ShaderUniforms["view"] = gl.GetUniformLocation(prog1, gl.Str("view\x00"))
-	glRender.GLCTX.ShaderUniforms["proj"] = gl.GetUniformLocation(prog1, gl.Str("projection\x00"))
-	glRender.GLCTX.ShaderUniforms["rotx"] = gl.GetUniformLocation(prog1, gl.Str("rotX\x00"))
-	glRender.GLCTX.ShaderUniforms["roty"] = gl.GetUniformLocation(prog1, gl.Str("rotY\x00"))
-	glRender.GLCTX.ShaderUniforms["rot0"] = gl.GetUniformLocation(prog1, gl.Str("rotOriginTrans0\x00"))
-	glRender.GLCTX.ShaderUniforms["rot1"] = gl.GetUniformLocation(prog1, gl.Str("rotOriginTrans1\x00"))
-	glRender.GLCTX.ShaderUniforms["rotOrigin"] = gl.GetUniformLocation(prog1, gl.Str("rotOrigin\x00"))
+	glRender.GLCTX.ShaderUniforms["viewMat"] = gl.GetUniformLocation(prog1, gl.Str("viewMat\x00"))
 
-	//Set the VAO
-	glRender.MakeGLBuffers()
-	GlobalTrans = &V.Vec{0, 0, 0}
+	glRender.CreateGLTFRenderObjects()
+	gl.Enable(gl.DEPTH_TEST)
+	gl.Enable(gl.DEPTH)
+	gl.Enable(gl.BLEND)
+	gl.BlendFunc(gl.SRC_ALPHA, gl.ONE_MINUS_SRC_ALPHA)
+	gl.ClearColor(0.015, 0.015, 0.015, 1.0)
 
 	return nil
 }
 
-func (glRender *GLRenderer) MakeGLBuffers() {
-	AccessorArray := glRender.GLScene.GetAccessors()
-	nAccessors := len(AccessorArray)
-	fmt.Printf("Count(Accessors): %d\n", nAccessors)
-	glRender.GLCTX.VBO = make([]uint32, nAccessors)
-	glRender.GLCTX.VAO = make([]uint32, nAccessors)
+//Prepares render data for each GLTF Mesh Primitive
+func (glRender *GLRenderer) CreateGLTFRenderObjects() {
 
-	//Initialize GLBuffers
-	gl.GenBuffers(int32(nAccessors), &glRender.GLCTX.VBO[0])
-	gl.GenVertexArrays(int32(nAccessors), &glRender.GLCTX.VAO[0])
+	glRender.RenderObjects = make([]*GLTFRenderObject, len(glRender.GLScene.GetMeshes()))
 
-	for i := 0; i < nAccessors; i++ {
-		vaoBind := glRender.GLCTX.VAO[i]
-		accessor, buffer_view, err := glRender.GLScene.GetAccessorBufferView(i)
+	gl.GenVertexArrays(1, &glRender.VAO)
+	gl.BindVertexArray(glRender.VAO)
+	//Note in real glTF nodes have children we're only loading top level siblings
+	for i := 0; i < len(glRender.GLScene.GetMeshes()); i++ {
+		mesh, err := glRender.GLScene.GetMeshIx(i)
+		checkError(err)
 
-		if err == nil {
+		//Add each primitive into the render object list.
+		for j := 0; j < len(mesh.Primitives); j++ {
+			renderObject := new(GLTFRenderObject)
+			primitive := mesh.Primitives[j]
+			posAccessorIdx := primitive.Attributes["POSITION"]
+			normAccessorIdx := primitive.Attributes["NORMAL"]
+			indicesAccessorIdx := primitive.Indices
 
-			componentType := accessor.ComponentType
-			size := SizeGL(accessor.Type)
-			bfr_offset := buffer_view.ByteOffset
-			bfr_byteLen := buffer_view.ByteLength
+			//Setup Positional data
+			PosAccessor, PosBufferView, Err := glRender.GLScene.GetAccessorBufferView(posAccessorIdx)
+			checkError(Err)
 
-			tgt := uint32(gl.ARRAY_BUFFER)
-			if componentType == 5123 {
-				tgt = uint32(gl.ELEMENT_ARRAY_BUFFER)
+			//Position RenderObject Data
+			if PosAccessor.ComponentType == gl.FLOAT {
+				renderObject.Vertices = glRender.GLScene.Buffers[0]
+				renderObject.VertexByteLength = PosBufferView.ByteLength
+				renderObject.VertexByteOffset = PosBufferView.ByteOffset
+
+			} else {
+				fmt.Errorf("TAG Not Implemented")
 			}
-			gl.BindVertexArray(vaoBind)
-			gl.BindBuffer(tgt, glRender.GLCTX.VBO[i])
-			gl.BufferSubData(tgt, bfr_offset, bfr_byteLen, gl.Ptr(&(*glRender.GLScene.Buffers[i][0]))
-			gl.VertexAttribPointer(uint32(i), int32(size), uint32(componentType), false, 0, nil)
-			gl.BindBuffer(tgt, 0)
+
+			//Index Data for Object
+			//Setup Positional data
+			_, IdxBufferView, _ := glRender.GLScene.GetAccessorBufferView(indicesAccessorIdx)
+
+			//Assumes Target
+			renderObject.Indices = glRender.GLScene.Buffers[0]
+			renderObject.IndexByteLength = IdxBufferView.ByteLength
+			renderObject.IndexByteOffset = IdxBufferView.ByteOffset
+
+			//Normal Data For Object
+			//Setup Positional data
+			normAccessor, normBufferView, NErr := glRender.GLScene.GetAccessorBufferView(normAccessorIdx)
+			checkError(NErr)
+
+			//Position RenderObject Data
+			if normAccessor.ComponentType == gl.FLOAT {
+				renderObject.Normals = glRender.GLScene.Buffers[0]
+				renderObject.NormalsByteLength = normBufferView.ByteLength
+				renderObject.NormalsByteOffset = normBufferView.ByteOffset
+
+			} else {
+				fmt.Errorf("TAG Not Implemented")
+			}
+
+			//Prepare to upload buffers to GPU
+			vbos := make([]uint32, 3)
+			gl.GenBuffers(3, &vbos[0])
+
+			renderObject.VertexBufferId = vbos[0]
+			renderObject.NormalsBufferId = vbos[1]
+			renderObject.IndexBufferId = vbos[2]
+
+			//Upload Vertex Buffer to GPU
+			gl.BindBuffer(gl.ARRAY_BUFFER, renderObject.VertexBufferId)
+			gl.BufferData(gl.ARRAY_BUFFER, renderObject.VertexByteLength, gl.Ptr(&renderObject.Vertices[renderObject.VertexByteOffset]), gl.STATIC_DRAW)
+
+			//Upload Normals Buffer to GPU
+
+			gl.BindBuffer(gl.ARRAY_BUFFER, renderObject.NormalsBufferId)
+			gl.BufferData(gl.ARRAY_BUFFER, renderObject.NormalsByteLength, gl.Ptr(&renderObject.Normals[renderObject.NormalsByteOffset]), gl.STATIC_DRAW)
+
+			//Upload Vertex Buffer to GPU
+
+			gl.BindBuffer(gl.ELEMENT_ARRAY_BUFFER, renderObject.IndexBufferId)
+			gl.BufferData(gl.ELEMENT_ARRAY_BUFFER, renderObject.IndexByteLength, gl.Ptr(&renderObject.Indices[renderObject.IndexByteOffset]), gl.STATIC_DRAW)
+
+			glRender.RenderObjects[i] = renderObject
 		}
 
+		gl.BindVertexArray(0)
 	}
-	gl.BindVertexArray(0)
+
+	nodes := glRender.GLScene.GetNodes()
+
+	for i := 0; i < len(nodes); i++ {
+		node := nodes[i]
+		meshIdx := node.Mesh      //Check if field is empty
+		trans := node.Translation //3 float 65
+		if len(trans) == 0 {
+			trans = make([]float32, 3)
+		}
+		scale := node.Scale //3 float64
+		if len(scale) == 0 {
+			scale = mgl.Mat3(1.0)
+		}
+		rot := node.Rotation //4 float64
+		if len(rot) == 0 {
+			rot = make([]float32, 4)
+		}
+		M := MatrixTRS(trans, rot, scale)
+		glRender.RenderObjects[meshIdx].Model = M //Column Major for Left Matrix Mults
+	}
+
 }
 
-func (glRender *GLRenderer) CleanBuffers() {
-	nAccessors := len(glRender.GLScene.GetAccessors())
-	for i := 0; i < nAccessors; i++ {
-		gl.DeleteVertexArrays(int32(i), &glRender.GLCTX.VAO[0])
-		gl.DeleteBuffers(int32(i), &glRender.GLCTX.VBO[0])
-	}
+//Constructs a Matrix from Translation scale rotation quat
+func MatrixTRS(t []float32, r []float32, s []float32) []float32 {
+	M := mgl.Mat4(1.0)
+	//Construct rotation Matrix from quaternion
+	/*
+		Q := r
+		x := float32(mgl.Pow(mgl.Abs(float64(mgl.Mag4(Q))), 0.5))
+		R := make([]float32, 9)
+		//Make Rotation
+		R[0] = 1 - 2.0*x*(Q[1]*Q[1]+Q[2]*Q[2])
+		R[1] = 2 * x * (Q[0]*Q[1] - Q[2]*Q[3])
+		R[2] = 2 * x * (Q[0]*Q[2] + Q[1]*Q[3])
+		R[3] = 2 * x * (Q[0]*Q[1] + Q[2]*Q[3])
+		R[4] = 1 - 2*x*(Q[0]*Q[0]+Q[2]*Q[2])
+		R[5] = 2 * x * (Q[1]*Q[2] - Q[0]*Q[3])
+		R[6] = 2 * x * (Q[0]*Q[2] - Q[1]*Q[3])
+		R[7] = 2 * x * (Q[1]*Q[2] + Q[0]*Q[3])
+		R[8] = 1 - 2*x*(Q[0]*Q[0]+Q[1]*Q[1])
+	*/
+
+	//Trans Matrix Affine
+	T := mgl.Mat4(1.0)
+	T[12] = t[0]
+	T[13] = t[1]
+	T[14] = t[2]
+
+	S := mgl.Mat4(1.0)
+	S[0] = s[0]
+	S[5] = s[1]
+	S[10] = s[2]
+
+	M = T.MulM(S)
+
+	return M
 }
 
-func SizeGL(typeID string) uint32 {
-	if typeID == "SCALAR" {
-		return 1
+func CheckGlError(op string) {
+	error := gl.GetError()
+	if error == gl.NO_ERROR {
+		return
 	}
-	if typeID == "VEC3" {
-		return 3
-	}
-	if typeID == "VEC2" {
-		return 2
-	}
-	if typeID == "VEC4" {
-		return 4
-	}
-	return 1
-}
-
-func SetRotMatrix(dsl *scene.DSLScene) {
-	cosAX := float32(math.Cos(float64(RotAngleX)))
-	sinAX := float32(math.Sin(float64(RotAngleX)))
-	cosAY := float32(math.Cos(float64(RotAngleY)))
-	sinAY := float32(math.Sin(float64(RotAngleY)))
-
-	dsl.RotX[4] = cosAX
-	dsl.RotX[5] = sinAX
-	dsl.RotX[7] = -sinAX
-	dsl.RotX[8] = cosAX
-
-	dsl.RotY[0] = cosAY
-	dsl.RotY[2] = -sinAY
-	dsl.RotY[6] = sinAY
-	dsl.RotY[8] = cosAY
-
+	fmt.Printf(op+"GL Error %d: ", error)
 }
 
 //Draw rendering routine fundamentally recognizes that a VBO draw VAO draw routine
@@ -297,43 +350,47 @@ func SetRotMatrix(dsl *scene.DSLScene) {
 //With associated shader routines - should iteratively draw meshes
 func (glRender *GLRenderer) Draw() error {
 
-	//FPS
-	elapse_s := lastTime.Sub(time.Now()).Seconds()
-	Fps = 1 / elapse_s
-
-	GlobalTrans[0] *= 0
-	GlobalTrans[1] *= 0
-	GlobalTrans[2] *= 0
-
-	gl.UseProgram(glRender.GLCTX.ProgramID["default"])
-	gl.UniformMatrix4fv(glRender.GLCTX.ShaderUniforms["model"], 1, false, &glRender.GLScene.Model[0])
-	gl.UniformMatrix4fv(glRender.GLCTX.ShaderUniforms["view"], 1, false, &glRender.GLScene.View[0])
-	gl.UniformMatrix4fv(glRender.GLCTX.ShaderUniforms["proj"], 1, false, &glRender.GLScene.Cam.ProjMat[0])
-	gl.UniformMatrix3fv(glRender.GLCTX.ShaderUniforms["rotx"], 1, false, &glRender.GLScene.RotX[0])
-	gl.UniformMatrix3fv(glRender.GLCTX.ShaderUniforms["roty"], 1, false, &glRender.GLScene.RotY[0])
-	gl.UniformMatrix4fv(glRender.GLCTX.ShaderUniforms["rot0"], 1, false, &glRender.GLScene.Rot0[0])
-	gl.UniformMatrix4fv(glRender.GLCTX.ShaderUniforms["rot1"], 1, false, &glRender.GLScene.Rot1[0])
-	gl.UniformMatrix4fv(glRender.GLCTX.ShaderUniforms["rotOrign"], 1, false, &glRender.GLScene.RotOrigin[0])
-
-	gl.ClearColor(0, 0, 0, 1.0)
+	mglView := RenderState.Camera.Update()
 	gl.Clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT)
-	nAccessors := len(glRender.GLScene.GetAccessors())
+	gl.UseProgram(glRender.GLCTX.ProgramID["default"])
 
-	for i := 0; i < nAccessors; i++ {
-		mAccessor, err := glRender.GLScene.GetAccessorIx(i)
-		if err == nil {
-			gl.BindVertexArray(glRender.GLCTX.VAO[i])
-			gl.EnableVertexAttribArray(uint32(i))
-			gl.DrawArrays(gl.TRIANGLES, 0, int32(mAccessor.Count))
-			gl.DisableVertexAttribArray(uint32(i))
-		}
+	gl.BindVertexArray(glRender.VAO)
+	gl.UniformMatrix4fv(glRender.GLCTX.ShaderUniforms["mvp"], 1, false, &glRender.MVPMat[0])
+	gl.UniformMatrix4fv(glRender.GLCTX.ShaderUniforms["viewMat"], 1, false, &mglView[0])
+
+	for i := 0; i < len(glRender.RenderObjects); i++ {
+
+		renderObject := glRender.RenderObjects[i]
+
+		gl.UniformMatrix4fv(glRender.GLCTX.ShaderUniforms["model"], 1, false, &glRender.RenderObjects[i].Model[0])
+
+		gl.BindBuffer(gl.ARRAY_BUFFER, renderObject.VertexBufferId)
+		gl.VertexAttribPointer(0, COORDS_PER_VERTEX, gl.FLOAT, false, 0, gl.PtrOffset(0))
+		gl.EnableVertexAttribArray(0)
+		gl.BindBuffer(gl.ARRAY_BUFFER, renderObject.NormalsBufferId)
+		gl.VertexAttribPointer(3, COORDS_PER_VERTEX, gl.FLOAT, false, 0, gl.PtrOffset(0))
+		gl.EnableVertexAttribArray(3)
+
+		//Bind IndicesAccessorIdx
+		gl.BindBuffer(gl.ELEMENT_ARRAY_BUFFER, renderObject.IndexBufferId)
+		numElements := renderObject.IndexByteLength / BYTES_PER_SHORT
+		gl.DrawElements(gl.TRIANGLES, int32(numElements), gl.UNSIGNED_SHORT, gl.PtrOffset(0))
+		gl.BindBuffer(gl.ELEMENT_ARRAY_BUFFER, 0)
+
+		gl.DisableVertexAttribArray(0)
+		gl.DisableVertexAttribArray(1)
+
 	}
+
+	gl.BindVertexArray(0)
+	glRender.GLHandle.SwapBuffers()
+	glfw.PollEvents()
 	return nil
 
 }
 
 func (glRender *GLRenderer) Update() error {
-	glRender.CleanBuffers()
+
 	return nil
 
 }
@@ -344,42 +401,45 @@ func (glRender *GLRenderer) Close() error {
 }
 
 func ProcessInput(w *glfw.Window, key glfw.Key, scancode int, action glfw.Action, mods glfw.ModifierKey) {
-	cameraSpeed := float32(0.009) // adjust accordingly - Just use framerate
-
+	cameraSpeed := float32(0.5) // adjust accordingly - Just use framerate
+	RenderState.KeyPressed = 1
 	trans := cameraSpeed
+	dir := RenderState.Camera.Transform.Matrix.Get(2)
+	ldir := RenderState.Camera.Transform.Matrix.Get(0)
+	up := RenderState.Camera.Transform.Matrix.Get(1)
 
 	if key == glfw.KeyW {
 		//Accumulates the translation Vector
-		p := V.Vec{0.0, 0.0, -1.0}
-		GlobalTrans.Add(*p.Scl(trans))
+		p := mgl.Scale(dir, -trans)
+		RenderState.Camera.Transform.Translate(p)
 	}
 	if key == glfw.KeyS {
 		//Accumulates the translation Vector
-		p := V.Vec{0.0, 0.0, 1.0}
-		GlobalTrans.Add(*p.Scl(trans))
+		p := mgl.Scale(dir, trans)
+		RenderState.Camera.Transform.Translate(p)
 	}
 	if key == glfw.KeyA {
 		//Accumulates the translation Vector
 		//Accumulates the translation Vector
-		p := V.Vec{-1.0, 0.0, 0.0}
-		GlobalTrans.Add(*p.Scl(trans))
+		p := mgl.Scale(ldir, -trans)
+		RenderState.Camera.Transform.Translate(p)
 	}
 	if key == glfw.KeyD {
 		//Accumulates the translation Vector
-		p := V.Vec{1.0, 0.0, 0.0}
-		GlobalTrans.Add(*p.Scl(trans))
+		p := mgl.Scale(ldir, trans)
+		RenderState.Camera.Transform.Translate(p)
 	}
 
 	if key == glfw.KeyUp {
-		p := V.Vec{0.0, -1.0, 0.0}
-		GlobalTrans.Add(*p.Scl(trans))
+		p := mgl.Scale(up, trans)
+		RenderState.Camera.Transform.Translate(p)
 	}
 	if key == glfw.KeyDown {
-		p := V.Vec{0.0, 1.0, 0.0}
-		GlobalTrans.Add(*p.Scl(trans))
+		p := mgl.Scale(up, -trans)
+		RenderState.Camera.Transform.Translate(p)
 	}
 	if key == glfw.KeyTab {
-		fmt.Printf("Current Simulation Time: %f\n", animationTime)
+		RenderState.Camera.Log()
 	}
 }
 
@@ -387,34 +447,37 @@ func ProcessInput(w *glfw.Window, key glfw.Key, scancode int, action glfw.Action
 func ProcessMouse(w *glfw.Window, button glfw.MouseButton, action glfw.Action, mods glfw.ModifierKey) {
 	if button == glfw.MouseButtonLeft && action == glfw.Press {
 		//Save the raw xy postion intial and continuously update and poll
-		if !state_hold_mouse {
-			state_hold_mouse = true
-			RotateTime = time.Now()
-			RotateTimeLast = time.Now()
+		if !RenderState.MouseStateHold {
+			RenderState.MouseStateHold = true
+			RenderState.RotateTime = time.Now()
+			RenderState.RotateTimeLast = time.Now()
 
 		} else {
-			RotateTimeLast = time.Now()
+			RenderState.RotateTimeLast = time.Now()
 		}
 
 	}
 	if button == glfw.MouseButtonLeft && action == glfw.Release {
-		state_hold_mouse = false
-		xT = 0
-		yT = 0
+		RenderState.MouseStateHold = false
+		RenderState.XT = 0
+		RenderState.YT = 0
 	}
 }
 
+//Rotation Functionality should depend on specific mode - we Need
+//to delegate Application State Logic to a higher layer.
+//Overall an async'd application event system would be isdea for storing Application
+//State/Vars/ETc Etc.
 func ProcessCursor(w *glfw.Window, xPos float64, yPos float64) {
-
-	if state_hold_mouse {
-		dt := RotateTimeLast.Sub(time.Now()).Seconds()
-		if !(xT == 0) && !(yT == 0) {
-			xdt := (xT - xPos) / dt
-			ydt := (yT - yPos) / dt
-			RotAngleX += float32(ydt / 100)
-			RotAngleY += float32(xdt / 100)
+	if RenderState.MouseStateHold {
+		dt := RenderState.RotateTimeLast.Sub(time.Now()).Seconds()
+		if !(RenderState.XT == 0) && !(RenderState.YT == 0) {
+			xdt := (RenderState.XT - xPos) / (dt)
+			ydt := (RenderState.YT - yPos) / (dt)
+			RenderState.Camera.RotateFPS(mgl.Vec{float32(-ydt), float32(-xdt), 0})
 		}
-		xT = xPos
-		yT = yPos
+		RenderState.XT = xPos
+		RenderState.YT = yPos
 	}
+
 }

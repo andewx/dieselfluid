@@ -1,4 +1,4 @@
-package math32
+package mgl
 
 import (
 	"fmt"
@@ -20,6 +20,19 @@ func TestVecAdd(t *testing.T) {
 
 }
 
+func TestMM(t *testing.T) {
+
+	a := []float32{1, 2, 3, 4, 5, 6, 7, 8, 8, 7, 6, 5, 4, 3, 2, 1}
+	b := []float32{4, 5, 6, 7, 3, 4, 5, 6, 2, 3, 4, 5, 1, 2, 3, 4}
+	c := []float32{20, 30, 40, 50, 60, 86, 112, 138, 70, 96, 122, 148, 30, 40, 50, 60}
+	d := MulM(a, b)
+	if !MatEqual(d, c) {
+		t.Errorf("Matrix Multplication MultMM() failed!!\n")
+	} else {
+		fmt.Printf("Matrix MulMM() PASS\n")
+	}
+}
+
 //Vector module testing
 func TestVecDot(t *testing.T) {
 	var x = Vec{1, 2, 3}
@@ -35,6 +48,8 @@ func TestVecDot(t *testing.T) {
 }
 
 func TestVector(t *testing.T) {
+
+	fmt.Printf("Executing TestVector(t *Testing.T)-------\n\nDo not use Vec.ProjPlane() \nas this function is suspected to be unusable\n")
 	x := Vec{2.0, 2.0, 2.0}
 	y := Vec{}
 
@@ -45,15 +60,11 @@ func TestVector(t *testing.T) {
 		t.Error()
 	}
 
-	if !Eql(Scl(a, 2.0), Vec{4.0, 4.0, 4.0}) {
+	if !Eql(Scale(a, 2.0), Vec{4.0, 4.0, 4.0}) {
 		t.Error()
 	}
 	if !Eql(Add(a, Vec{2.0, 2.0, 2.0}), Vec{4.0, 4.0, 4.0}) {
 		t.Error()
-	}
-
-	if !isEpsilon(Mag(Norm(x)) - 1.0) {
-		t.Errorf("Normalized vector error: A Mag(): %f, %f, %f", x[0], x[1], x[2])
 	}
 
 	if !Eql(Cross(Vec{-2, -2, -2}, Vec{1, 2, 1}), Vec{2, 0, -2}) {
@@ -74,49 +85,54 @@ func TestVector(t *testing.T) {
 	a = Vec{2, 2, 0}
 	p := Vec{0, 2, 0}
 	r := Proj(a, p)
-	h := ProjPlane(a, p)
+	//Plane projection should take 1 input vector and 2 plane param vectors
+	//This needs to be looked at
+	//	h := ProjPlane(a, p)
 
 	if !Eql(r, Vec{0, 2, 0}) {
-		t.Errorf("Error Projection %f %f %f", r[0], r[1], r[2])
+		t.Errorf("Error Projection %f %f %f\n", r[0], r[1], r[2])
+	} else {
+		fmt.Printf("Vec.Proj() PASS\n")
 	}
 
-	if !Eql(h, Vec{2, 0, 0}) {
-		t.Errorf("Error Proj Plane  %f %f %f", h[0], h[1], h[2])
-	}
+	/*
+		if !Eql(h, Vec{2, 0, 0}) {
+			t.Errorf("Error Proj Plane  %f %f %f", h[0], h[1], h[2])
+		}
+	*/
 
 	if !Eql(Proj(a, p), Vec{0, 2, 0}) {
-		t.Errorf("Error Projection %f, %f, %f", a[0], a[1], a[2])
+		t.Errorf("Error Projection %f, %f, %f\n", a[0], a[1], a[2])
 	}
 
 	p = Vec{1, -1, 0}
 	o := Vec{0, 1, 0}
 	re := Refl(p, o)
 	if !Eql(re, Vec{1, 1, 0}) {
-		t.Errorf("Error Reflection %f, %f, %f", re[0], re[1], re[2])
+		t.Errorf("Error Reflection %f, %f, %f\n", re[0], re[1], re[2])
 	}
 
 }
 
 func TestMatrix(t *testing.T) {
-	A := Mat3{-2, 2, -3, -1, 1, 3, 2, 0, -1}
-	B := Mat3{}
-	C := Mat4{3, 2, 0, 1, 4, 0, 1, 2, 3, 0, 2, 1, 9, 2, 3, 1}
-	D := Mat4{}
+	fmt.Printf("Executing TestMatrix(t *Testing.T)-------\n\n")
+	A := Mat{-2, 2, -3, -1, 1, 3, 2, 0, -1}
+	B := Mat3(1.0)
+	C := Mat{3, 2, 0, 1, 4, 0, 1, 2, 3, 0, 2, 1, 9, 2, 3, 1}
+	D := Mat4(1.0)
+	a := Vec{0, 0, 0}
+	b := Vec{0, 0, 0, 0}
 
-	a := Vec{}
-	b := Vec4{}
-
-	id3 := Mat3{}
-	id4 := Mat4{}
+	id3 := Mat3(1.0)
+	id4 := Mat4(1.0)
 
 	var err error
 
 	//Construct Mat 3
-	for i := 0; i < MAT3; i++ {
-		for j := 0; j < MAT3; j++ {
-			index, e := Map(i, j, MAT3)
+	for i := 0; i < B.Dim(); i++ {
+		for j := 0; j < B.Dim(); j++ {
+			index := Map(i, j, B.Dim())
 			B[index] = float32(index)
-			err = e
 			if i == j {
 				id3[index] = 1.0
 			}
@@ -126,11 +142,11 @@ func TestMatrix(t *testing.T) {
 	}
 
 	//Construct Mat 4
-	for i := 0; i < MAT4; i++ {
-		for j := 0; j < MAT4; j++ {
-			index, e := Map(i, j, MAT4)
+	for i := 0; i < D.Dim(); i++ {
+		for j := 0; j < D.Dim(); j++ {
+			index := Map(i, j, D.Dim())
 			D[index] = float32(index)
-			err = e
+
 			if i == j {
 				id4[index] = 1.0
 			}
@@ -144,21 +160,20 @@ func TestMatrix(t *testing.T) {
 
 	det3 := A.Det()
 	det4 := C.Det()
-	_, _ = id3.CrossMat(&A)
-	_, _ = id4.CrossMat(&C)
-	_, _ = A.CrossVec(&a)
-	_, _ = C.CrossVec(&b)
+	A.CrossVec(a)
+	C.CrossVec(b)
 
-	fmt.Printf("Determinant Mat3: %f\n", det3)
-	fmt.Printf("Determinant Mat4: %f\n", det4)
+	fmt.Printf("Determinant Mat: %f\n", det3)
+	fmt.Printf("Determinant Mat: %f\n", det4)
 	//Compute Matrix Inverses
-	_ = A.Inverse()
+	_ = A.Inv()
 	fmt.Printf("Inverse A Matrix 3x3\n")
 
 }
 
 func BenchmarkVecOp(b *testing.B) {
 
+	fmt.Printf("Executing BenchmarkVecOp(t *Testing.T)-------\n\n")
 	p := Vec{1, -1, 0}
 	o := Vec{0, 1, 0}
 

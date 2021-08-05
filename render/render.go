@@ -33,10 +33,6 @@ type Context struct {
 	VertShaderID        map[string]uint32
 	ProgramID           map[string]uint32
 	ShaderUniforms      map[string]int32
-
-	//Vertex Buffers / Indice Buffers
-	VBO []uint32
-	VAO []uint32
 }
 
 //Renderer API Call Context

@@ -467,19 +467,19 @@ type Node struct {
 	Name string `json:"name,omitempty"`
 
 	// The node's unit quaternion rotation in the order (x, y, z, w), where w is the scalar.
-	Rotation []float64 `json:"rotation,omitempty"`
+	Rotation []float32 `json:"rotation,omitempty"`
 
 	// The node's non-uniform scale, given as the scaling factors along the x, y, and z axes.
-	Scale []float64 `json:"scale,omitempty"`
+	Scale []float32 `json:"scale,omitempty"`
 
 	// The index of the skin referenced by this node.
 	Skin int `json:"skin,omitempty"`
 
 	// The node's translation along the x, y, and z axes.
-	Translation []float64 `json:"translation,omitempty"`
+	Translation []float32 `json:"translation,omitempty"`
 
 	// The weights of the instantiated Morph Target. Number of elements must match number of Morph Targets of used mesh.
-	Weights []float64 `json:"weights,omitempty"`
+	Weights []float32 `json:"weights,omitempty"`
 }
 
 // Sampler Texture sampler properties for filtering and wrapping modes.
