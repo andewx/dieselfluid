@@ -25,8 +25,19 @@ type TexLibrary struct {
 
 //Holds GoLang Image Interface Type
 type Texture struct {
-	Name  string
-	Image image.Image
+	Name           string
+	Image          image.Image
+	TexGLUnit      int32
+	TexUVCoordAttr int32
+	Sampler        TexSampler
+}
+
+//TexSampler holds GL / Driver sampler constants
+type TexSampler struct {
+	MagFilter int32
+	MinFilter int32
+	WrapS     int32
+	WrapT     int32
 }
 
 func NewTexLibrary() TexLibrary {
@@ -39,7 +50,7 @@ func NewTexLibrary() TexLibrary {
 
 /* Load Library should load in any image and decode images into a byte stream
 to be fed into the OpenGL Texture Memory*/
-func (t *TexLibrary) Load(path string) error {
+func (t *TexLibrary) Load(path string, texIndex int32) error {
 
 	f, err := os.Open(t.Base + path) //File is the reader
 
@@ -56,7 +67,7 @@ func (t *TexLibrary) Load(path string) error {
 	}
 
 	//Create new "Texture" and append to library
-	tex := Texture{path, img}
+	tex := Texture{path, img, gl.TEXTURE0 + texIndex, 0, TexSampler{}}
 	t.Textures = append(t.Textures, tex)
 	return nil
 }

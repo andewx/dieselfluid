@@ -1,5 +1,19 @@
 package glr
 
+/*
+Package glr
+
+Render implementation handles Global Render Routines, Setup, Draw, CreateGLTFRenderObjects,
+Update, Clear etc...
+
+Consider Refactoring Imperative Function Names and Map Concrete GlRenderer -> Typed Interface
+Renderer
+
+Note that GLR Renderer handles scene, camera, matrices, transforms, etc adding some dependencies
+
+For GO purposes however working the Core GL Exported C Functions will probably comprise the scope
+of available renderers. (Except for Realtime GI RT)
+*/
 import (
 	"dslfluid.com/dsl/math/mgl"
 	"dslfluid.com/dsl/render"

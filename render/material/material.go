@@ -1,18 +1,25 @@
 package render
 
-type TexMaterial struct {
-	Name      string
-	Type      string
-	UVIndex   int
-	FilePath  string
-	TextureID string
+type TextureID struct {
+	Index    int32
+	UVCoord  int32
+	Scale    float32
+	Strength float32
 }
-type Material struct {
-	Name       string
-	ShaderID   string
-	Textures   []TexMaterial
-	Diffuse    [3]float32
-	Specular   [3]float32
-	Glossiness float32
-	Opacity    float32
+
+//PBRMaterial Type Represents a ready to use Metallic Roughness Based material
+//For rendering
+type PBRMaterial struct {
+	Name                     string
+	ShaderID                 string
+	BaseColorTexture         TextureID
+	NormalTexture            TextureID
+	OcculusionTexture        TextureID
+	EmmissiveTexture         TextureID
+	AmbientOcclusionTexture  TextureID
+	DisplacementTexture      TextureID
+	MetallicRoughnessTexture TextureID //Blue Metalness/Green Roughnes
+	BaseColor                [4]float32
+	MetallicFactor           float32
+	RoughnessFactor          float32
 }
