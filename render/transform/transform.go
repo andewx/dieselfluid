@@ -42,8 +42,7 @@ func (T *Transform) Rotate(axis mgl.Vec, angle float32) mgl.Mat {
 	return T.Matrix
 }
 
-//EulerRotate Applies Yaw (Z Axis), Pitch (Y Axis), Roll(X Axis) - Rotation and
-//maps the result to the current transform.
+//EulerRotate compactifies the intended yaw / pitch / roll values into a rotation matrix form
 func (T *Transform) EulerRotate(yaw float32, pitch float32, roll float32) {
 	y := float64(yaw)
 	p := float64(pitch)
@@ -56,19 +55,12 @@ func (T *Transform) EulerRotate(yaw float32, pitch float32, roll float32) {
 	cosX := float32(math.Cos(r))
 	sinX := float32(math.Sin(r))
 
-	/*
-		Rotation := mgl.Mat{
-			cosZ * cosY, cosZ*sinY*sinX - sinZ*cosX, cosZ*sinY*cosX + sinZ*sinX, 0,
-			sinZ * cosY, sinZ*sinY*sinX + cosZ*cosX, sinZ*sinY*cosX - cosZ*sinX, 0,
-			-sinY, cosY * sinX, cosY * cosX, 0, 0, 0, 0, 1,
-		}
-	*/
+	euler := mgl.Mat{
+		cosZ * cosY, cosZ*sinY*sinX - sinZ*cosX, cosZ*sinY*cosX + sinZ*sinX, 0,
+		sinZ * cosY, sinZ*sinY*sinX + cosZ*cosX, sinZ*sinY*cosX - cosZ*sinX, 0,
+		-sinY, cosY * sinX, cosY * cosX, 0, 0, 0, 0, 1,
+	}
 
-	RotMat := mgl.Mat4(1.0)
-	YawMat := mgl.Mat{cosZ, -sinZ, 0, 0, sinZ, cosZ, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1}
-	PitchMat := mgl.Mat{cosY, 0, sinY, 0, 0, 1, 0, 0, -sinY, 0, cosY, 0, 0, 0, 0, 1}
-	RollMat := mgl.Mat{1, 0, 0, 0, 0, cosX, -sinX, 0, 0, sinX, cosX, 0, 0, 0, 0, 1}
-
-	T.Matrix = T.Matrix.MulM(RotMat.MulM(YawMat.MulM(PitchMat.MulM(RollMat))))
+	T.Matrix = euler
 
 }
