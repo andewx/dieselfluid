@@ -29,10 +29,14 @@ import (
 
 //Implements  RenderAPIContext & Renderer Interface in float32 Env
 const (
-	MIN_PARAM_SIZE    = 10
-	COORDS_PER_VERTEX = 3
-	BYTES_PER_FLOAT   = 4
-	BYTES_PER_SHORT   = 2
+	MIN_PARAM_SIZE      = 10
+	COORDS_PER_VERTEX   = 3
+	BYTES_PER_FLOAT     = 4
+	BYTES_PER_SHORT     = 2
+	VERT_POSITION_DATA  = 0
+	VERT_ATTR_NORM_DATA = 3
+	VERT_ATTR_RGB_DATA  = 6
+	VERT_ATTR_UV_DATA   = 9
 )
 
 //GLRenderer Holds RenderAPIContext Vars
@@ -232,7 +236,7 @@ func (glRender *GLRenderer) CreateGLTFRenderObjects() {
 
 			//Position RenderObject Data
 			if PosAccessor.ComponentType == gl.FLOAT {
-				renderObject.Vertices = glRender.GLScene.Buffers[0]
+				renderObject.Vertices = glRender.GLScene.Buffers[PosBufferView.Buffer]
 				renderObject.VertexByteLength = PosBufferView.ByteLength
 				renderObject.VertexByteOffset = PosBufferView.ByteOffset
 
@@ -245,7 +249,7 @@ func (glRender *GLRenderer) CreateGLTFRenderObjects() {
 			_, IdxBufferView, _ := glRender.GLScene.GetAccessorBufferView(indicesAccessorIdx)
 
 			//Assumes Target
-			renderObject.Indices = glRender.GLScene.Buffers[0]
+			renderObject.Indices = glRender.GLScene.Buffers[IdxBufferView.Buffer]
 			renderObject.IndexByteLength = IdxBufferView.ByteLength
 			renderObject.IndexByteOffset = IdxBufferView.ByteOffset
 
@@ -256,7 +260,7 @@ func (glRender *GLRenderer) CreateGLTFRenderObjects() {
 
 			//Position RenderObject Data
 			if normAccessor.ComponentType == gl.FLOAT {
-				renderObject.Normals = glRender.GLScene.Buffers[0]
+				renderObject.Normals = glRender.GLScene.Buffers[normBufferView.Buffer]
 				renderObject.NormalsByteLength = normBufferView.ByteLength
 				renderObject.NormalsByteOffset = normBufferView.ByteOffset
 
@@ -274,17 +278,17 @@ func (glRender *GLRenderer) CreateGLTFRenderObjects() {
 
 			//Upload Vertex Buffer to GPU
 			gl.BindBuffer(gl.ARRAY_BUFFER, renderObject.VertexBufferId)
-			gl.BufferData(gl.ARRAY_BUFFER, renderObject.VertexByteLength, gl.Ptr(&renderObject.Vertices[renderObject.VertexByteOffset]), gl.STATIC_DRAW)
+			gl.BufferData(gl.ARRAY_BUFFER, renderObject.VertexByteLength, gl.Ptr(&(renderObject.Vertices)[renderObject.VertexByteOffset]), gl.STATIC_DRAW)
 
 			//Upload Normals Buffer to GPU
 
 			gl.BindBuffer(gl.ARRAY_BUFFER, renderObject.NormalsBufferId)
-			gl.BufferData(gl.ARRAY_BUFFER, renderObject.NormalsByteLength, gl.Ptr(&renderObject.Normals[renderObject.NormalsByteOffset]), gl.STATIC_DRAW)
+			gl.BufferData(gl.ARRAY_BUFFER, renderObject.NormalsByteLength, gl.Ptr(&(renderObject.Normals)[renderObject.NormalsByteOffset]), gl.STATIC_DRAW)
 
 			//Upload Vertex Buffer to GPU
 
 			gl.BindBuffer(gl.ELEMENT_ARRAY_BUFFER, renderObject.IndexBufferId)
-			gl.BufferData(gl.ELEMENT_ARRAY_BUFFER, renderObject.IndexByteLength, gl.Ptr(&renderObject.Indices[renderObject.IndexByteOffset]), gl.STATIC_DRAW)
+			gl.BufferData(gl.ELEMENT_ARRAY_BUFFER, renderObject.IndexByteLength, gl.Ptr(&(renderObject.Indices)[renderObject.IndexByteOffset]), gl.STATIC_DRAW)
 
 			glRender.RenderObjects[i] = renderObject
 		}
@@ -318,22 +322,6 @@ func (glRender *GLRenderer) CreateGLTFRenderObjects() {
 //Constructs a Matrix from Translation scale rotation quat
 func MatrixTRS(t []float32, r []float32, s []float32) []float32 {
 	M := mgl.Mat4(1.0)
-	//Construct rotation Matrix from quaternion
-	/*
-		Q := r
-		x := float32(mgl.Pow(mgl.Abs(float64(mgl.Mag4(Q))), 0.5))
-		R := make([]float32, 9)
-		//Make Rotation
-		R[0] = 1 - 2.0*x*(Q[1]*Q[1]+Q[2]*Q[2])
-		R[1] = 2 * x * (Q[0]*Q[1] - Q[2]*Q[3])
-		R[2] = 2 * x * (Q[0]*Q[2] + Q[1]*Q[3])
-		R[3] = 2 * x * (Q[0]*Q[1] + Q[2]*Q[3])
-		R[4] = 1 - 2*x*(Q[0]*Q[0]+Q[2]*Q[2])
-		R[5] = 2 * x * (Q[1]*Q[2] - Q[0]*Q[3])
-		R[6] = 2 * x * (Q[0]*Q[2] - Q[1]*Q[3])
-		R[7] = 2 * x * (Q[1]*Q[2] + Q[0]*Q[3])
-		R[8] = 1 - 2*x*(Q[0]*Q[0]+Q[1]*Q[1])
-	*/
 
 	//Trans Matrix Affine
 	T := mgl.Mat4(1.0)
@@ -367,7 +355,6 @@ func (glRender *GLRenderer) Draw() error {
 	mglView := RenderState.Camera.Update()
 	gl.Clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT)
 	gl.UseProgram(glRender.GLCTX.ProgramID["default"])
-
 	gl.BindVertexArray(glRender.VAO)
 	gl.UniformMatrix4fv(glRender.GLCTX.ShaderUniforms["mvp"], 1, false, &glRender.MVPMat[0])
 	gl.UniformMatrix4fv(glRender.GLCTX.ShaderUniforms["viewMat"], 1, false, &mglView[0])
@@ -379,11 +366,11 @@ func (glRender *GLRenderer) Draw() error {
 		gl.UniformMatrix4fv(glRender.GLCTX.ShaderUniforms["model"], 1, false, &glRender.RenderObjects[i].Model[0])
 
 		gl.BindBuffer(gl.ARRAY_BUFFER, renderObject.VertexBufferId)
-		gl.VertexAttribPointer(0, COORDS_PER_VERTEX, gl.FLOAT, false, 0, gl.PtrOffset(0))
-		gl.EnableVertexAttribArray(0)
+		gl.VertexAttribPointer(VERT_POSITION_DATA, COORDS_PER_VERTEX, gl.FLOAT, false, 0, gl.PtrOffset(0))
+		gl.EnableVertexAttribArray(VERT_POSITION_DATA)
 		gl.BindBuffer(gl.ARRAY_BUFFER, renderObject.NormalsBufferId)
-		gl.VertexAttribPointer(3, COORDS_PER_VERTEX, gl.FLOAT, false, 0, gl.PtrOffset(0))
-		gl.EnableVertexAttribArray(3)
+		gl.VertexAttribPointer(VERT_ATTR_NORM_DATA, COORDS_PER_VERTEX, gl.FLOAT, false, 0, gl.PtrOffset(0))
+		gl.EnableVertexAttribArray(VERT_ATTR_NORM_DATA)
 
 		//Bind IndicesAccessorIdx
 		gl.BindBuffer(gl.ELEMENT_ARRAY_BUFFER, renderObject.IndexBufferId)
@@ -391,8 +378,8 @@ func (glRender *GLRenderer) Draw() error {
 		gl.DrawElements(gl.TRIANGLES, int32(numElements), gl.UNSIGNED_SHORT, gl.PtrOffset(0))
 		gl.BindBuffer(gl.ELEMENT_ARRAY_BUFFER, 0)
 
-		gl.DisableVertexAttribArray(0)
-		gl.DisableVertexAttribArray(1)
+		gl.DisableVertexAttribArray(VERT_POSITION_DATA)
+		gl.DisableVertexAttribArray(VERT_ATTR_NORM_DATA)
 
 	}
 
@@ -475,20 +462,20 @@ func ProcessMouse(w *glfw.Window, button glfw.MouseButton, action glfw.Action, m
 		RenderState.MouseStateHold = false
 		RenderState.XT = 0
 		RenderState.YT = 0
+		RenderState.RotateTime = time.Now()
+		RenderState.RotateTimeLast = time.Now()
 	}
 }
 
-//Rotation Functionality should depend on specific mode - we Need
-//to delegate Application State Logic to a higher layer.
-//Overall an async'd application event system would be isdea for storing Application
-//State/Vars/ETc Etc.
+//ProcessCursor - GLFW Callback. While mouse is in state hold calculate a X,Y derivative
 func ProcessCursor(w *glfw.Window, xPos float64, yPos float64) {
 	if RenderState.MouseStateHold {
 		dt := RenderState.RotateTimeLast.Sub(time.Now()).Seconds()
 		if !(RenderState.XT == 0) && !(RenderState.YT == 0) {
-			xdt := (RenderState.XT - xPos) / (dt)
-			ydt := (RenderState.YT - yPos) / (dt)
+			xdt := (RenderState.XT - xPos) / (dt * 100)
+			ydt := (RenderState.YT - yPos) / (dt * 100)
 			RenderState.Camera.RotateFPS(mgl.Vec{float32(-ydt), float32(-xdt), 0})
+			RenderState.RotateTimeLast = time.Now()
 		}
 		RenderState.XT = xPos
 		RenderState.YT = yPos

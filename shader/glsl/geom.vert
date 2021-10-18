@@ -19,7 +19,7 @@ void main()
     vec3 ambient= vec3(0.2, 0.2, 0.2);
     vec3 diffuse = vec3(0.5, 0.5, 0.5);
     vec3 ambientDiffuse = (ambient)  + (diffuse * cosT);
-    color = vec4(ambientDiffuse,1.0);
+    color = vec4(1.0,1.0,1.0,1.0);
     gl_Position = mvp * viewMat* model * vec4(position,1.0);
 
 }

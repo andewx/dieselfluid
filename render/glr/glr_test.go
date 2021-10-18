@@ -15,7 +15,7 @@ func Test_Render(t *testing.T) {
 	glRender.GLHandle = InitGLFW()
 	defer glfw.Terminate()
 	InitOpenGL()
-	glRender.Setup("Minimal2.gltf", 1024, 740)
+	glRender.Setup("PbrSphere.gltf", 1024, 740)
 	glRender.CompileShaders()
 	for !glRender.GLHandle.ShouldClose() {
 		glRender.Draw()

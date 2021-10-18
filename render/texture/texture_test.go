@@ -13,10 +13,16 @@ import (
 )
 
 func TestLoad(t *testing.T) {
+
 	myLib := NewTexLibrary()
 	err := myLib.Load("/../../resources/logo.png", 0)
 	if err != nil {
 		fmt.Printf("Image load fail\n%s\n", err.Error())
 		t.Fail()
 	}
+	myLib.HasDevice = false
+
+	myLib.CommitTexLibGL()
+	myLib.RemoveTexLibGL()
+
 }

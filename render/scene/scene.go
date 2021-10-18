@@ -46,7 +46,7 @@ func (scene *DSLScene) ImportGLTF() error {
 			fmt.Printf("Unable to load Buffer URI\n")
 			return fmt.Errorf("Unable to load Buffer URI\nError Message %s", bErr.Error())
 		} else {
-			fmt.Printf("Loaded %d kB from URI...\n", bLength/1024)
+			fmt.Printf("Loaded %d kB from URI \n", bLength/1024)
 		}
 	}
 

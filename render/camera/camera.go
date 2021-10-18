@@ -80,24 +80,10 @@ func (cam *Camera) Rotate(axis mgl.Vec, angle float32) {
 /* RotateFPS treats camera rotation as a rotation of its front facing direction
 around a fixed up axis and arbitrary and calculated X (right) axis*/
 func (cam *Camera) RotateFPS(rot mgl.Vec) {
-	cam.Rot[0] += rot[0] / 50 //Roll X
-	cam.Rot[1] += rot[1] / 50 //Pitch Y
 
-	if cam.Rot[0] > 89.0 {
-		cam.Rot[0] = 89.0
-	}
-
-	if cam.Rot[1] > 360.0 {
-		cam.Rot[1] = cam.Rot[1] - 360.0
-	}
-
-	if cam.Rot[0] < -89.0 {
-		cam.Rot[0] = -89.0
-	}
-
-	if cam.Rot[1] < -360.0 {
-		cam.Rot[1] = 360.0 + cam.Rot[1]
-	}
+	//DX/DY
+	cam.Rot[0] = rot[0] //YAW
+	cam.Rot[1] = rot[1] // PITCH
 
 	//Compute Independent Rotation
 	RotTransform := transform.Transform{}
@@ -106,7 +92,7 @@ func (cam *Camera) RotateFPS(rot mgl.Vec) {
 
 	//Cross with the 4x4 Transform Matrix (3D Transforms might be easier if they returned a compacted 3 MAT)
 	nDir := RotTransform.Matrix.CrossVec(cam.Front)
-	front := mgl.Norm(mgl.Add(cam.Front, nDir))
+	front := mgl.Norm(nDir) //mgl.Add(cam.Front, nDir)
 	right := mgl.Norm(mgl.Cross(mgl.Vec{0, 1, 0}, cam.FrontVec()))
 	up := mgl.Norm(mgl.Cross(cam.FrontVec(), right))
 	cam.CopyFront(front)
