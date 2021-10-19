@@ -9,44 +9,12 @@
             "name" : "Scene",
             "nodes" : [
                 0,
-                1,
-                3
+                1
             ]
         }
     ],
     "nodes" : [
         {
-            "mesh" : 0,
-            "name" : "Cube"
-        },
-        {
-            "name" : "Light",
-            "rotation" : [
-                0.16907575726509094,
-                0.7558803558349609,
-                -0.27217137813568115,
-                0.570947527885437
-            ],
-            "translation" : [
-                4.076245307922363,
-                5.903861999511719,
-                -1.0054539442062378
-            ]
-        },
-        {
-            "camera" : 0,
-            "name" : "Camera_Orientation",
-            "rotation" : [
-                -0.7071067690849304,
-                0,
-                0,
-                0.7071067690849304
-            ]
-        },
-        {
-            "children" : [
-                2
-            ],
             "name" : "Camera",
             "rotation" : [
                 0.483536034822464,
@@ -59,32 +27,29 @@
                 4.958309173583984,
                 6.925790786743164
             ]
-        }
-    ],
-    "cameras" : [
+        },
         {
-            "name" : "Camera",
-            "perspective" : {
-                "yfov" : 0.39959648408210363,
-                "zfar" : 100,
-                "znear" : 0.10000000149011612
-            },
-            "type" : "perspective"
+            "mesh" : 0,
+            "name" : "Cube"
         }
     ],
     "materials" : [
         {
             "doubleSided" : true,
-            "name" : "Material",
+            "name" : "BlueTiles_SP.000",
+            "normalTexture" : {
+                "index" : 0,
+                "texCoord" : 0
+            },
             "pbrMetallicRoughness" : {
-                "baseColorFactor" : [
-                    0.800000011920929,
-                    0.800000011920929,
-                    0.800000011920929,
-                    1
-                ],
-                "metallicFactor" : 0,
-                "roughnessFactor" : 0.4000000059604645
+                "baseColorTexture" : {
+                    "index" : 1,
+                    "texCoord" : 0
+                },
+                "metallicRoughnessTexture" : {
+                    "index" : 2,
+                    "texCoord" : 0
+                }
             }
         }
     ],
@@ -102,6 +67,34 @@
                     "material" : 0
                 }
             ]
+        }
+    ],
+    "textures" : [
+        {
+            "source" : 0
+        },
+        {
+            "source" : 1
+        },
+        {
+            "source" : 2
+        }
+    ],
+    "images" : [
+        {
+            "mimeType" : "image/jpeg",
+            "name" : "Tiles_08_normal",
+            "uri" : "Tiles_08_normal.jpg"
+        },
+        {
+            "mimeType" : "image/jpeg",
+            "name" : "Tiles_08_basecolor",
+            "uri" : "Tiles_08_basecolor.jpg"
+        },
+        {
+            "mimeType" : "image/jpeg",
+            "name" : "Tiles_08_metallic-Tiles_08_roughness",
+            "uri" : "Tiles_08_metallic-Tiles_08_roughness.jpg"
         }
     ],
     "accessors" : [

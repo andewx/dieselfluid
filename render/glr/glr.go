@@ -46,7 +46,7 @@ type GLRenderer struct {
 	GLScene       scene.DSLScene      //GLTF JSON
 	RenderObjects []*GLTFRenderObject //Render Description
 	MVPMat        []float32
-	VAO           uint32
+	VAO           []uint32
 	VBO           []uint32
 	Indices       []uint16
 }
@@ -100,7 +100,7 @@ func InitRenderer() GLRenderer {
 //Setup Calls Window Context -- After setting up GLRenderer you should pass in relevant
 //OpenGL Draw Data initialization to include Shader Paths, Vertex, Indice, and Color Buffers
 //Then Call Init and Draw
-func (glRender *GLRenderer) Setup(filepath string, width float32, height float32) {
+func (glRender *GLRenderer) Setup(filepath string, width float32, height float32) error {
 
 	//Initialize the render contexts
 	newContext := render.Context{}
@@ -117,19 +117,18 @@ func (glRender *GLRenderer) Setup(filepath string, width float32, height float32
 	newContext.VertShaderID = make(map[string]uint32, MIN_PARAM_SIZE)
 	newContext.ProgramID = make(map[string]uint32, MIN_PARAM_SIZE)
 	newContext.ShaderUniforms = make(map[string]int32, MIN_PARAM_SIZE)
-	newContext.VertexShaderPaths["default"] = "/Users/andewx/go/src/github.com/andewx/dieselfluid/shader/glsl/geom.vert"
-	newContext.FragmentShaderPaths["default"] = "/Users/andewx/go/src/github.com/andewx/dieselfluid/shader/glsl/geom.frag"
+	newContext.VertexShaderPaths["default"] = "../../shader/glsl/geom.vert"
+	newContext.FragmentShaderPaths["default"] = "../../shader/glsl/geom.frag"
 
 	glRender.GLCTX = newContext
-	fmt.Printf("Initiating DSL Scene\n")
-	glRender.GLScene = scene.InitDSLScene("/Users/andewx/go/src/github.com/andewx/dieselfluid/resources/", filepath, width, height)
-	glRender.GLScene.ImportGLTF()
-	fmt.Printf("Scene Loaded\n")
-	fmt.Printf("Accessors(%d)\n", len(glRender.GLScene.GetAccessors()))
-
-	/*	glRender.GLHandle.SetMouseButtonCallback(ProcessMouse)
-		glRender.GLHandle.SetCursorPosCallback(ProcessCursor)
-	*/
+	glRender.GLScene = scene.InitDSLScene("../../resources/", filepath, width, height)
+	if err := glRender.GLScene.ImportGLTF(); err != nil {
+		return err
+	}
+	glRender.GLHandle.SetMouseButtonCallback(ProcessMouse)
+	glRender.GLHandle.SetCursorPosCallback(ProcessCursor)
+	glRender.GLHandle.SetKeyCallback(ProcessInput)
+	return nil
 
 }
 
@@ -185,14 +184,13 @@ func (glRender *GLRenderer) CompileShaders() error {
 	gl.LinkProgram(prog1)
 
 	var logLength = int32(1000)
-	fmt.Printf("Log length %d\n", logLength)
 	log := strings.Repeat("\x00", int(logLength+1))
 	gl.GetProgramInfoLog(prog1, logLength, nil, gl.Str(log))
 	fmt.Printf("%s", log)
 
 	active := int32(0)
 	gl.GetProgramiv(prog1, gl.ACTIVE_UNIFORMS, &active)
-	fmt.Printf("Active Unifroms count %d\n", active)
+	fmt.Printf("SHADER UNIFORMS[%d]\n", active)
 	glRender.GLCTX.ProgramID["default"] = prog1
 
 	//Initialize Scene and Assign Camera projection and var
@@ -205,23 +203,28 @@ func (glRender *GLRenderer) CompileShaders() error {
 	gl.Enable(gl.DEPTH)
 	gl.Enable(gl.BLEND)
 	gl.BlendFunc(gl.SRC_ALPHA, gl.ONE_MINUS_SRC_ALPHA)
-	gl.ClearColor(0.015, 0.015, 0.015, 1.0)
+	gl.ClearColor(0.1, 0.1, 0.1, 1.0)
 
 	return nil
 }
 
-//Prepares render data for each GLTF Mesh Primitive
+//Prepares render data for each GLTF Mesh Primitive -- move this to scene import
 func (glRender *GLRenderer) CreateGLTFRenderObjects() {
 
+	meshes := len(glRender.GLScene.GetMeshes())
 	glRender.RenderObjects = make([]*GLTFRenderObject, len(glRender.GLScene.GetMeshes()))
+	glRender.VAO = make([]uint32, meshes)
+	gl.GenVertexArrays(int32(meshes), &glRender.VAO[0])
 
-	gl.GenVertexArrays(1, &glRender.VAO)
-	gl.BindVertexArray(glRender.VAO)
+	if len(glRender.GLScene.GetMeshes()) == 0 {
+		fmt.Printf("No GLTF Meshes\n")
+		glRender.GLScene.Info()
+	}
 	//Note in real glTF nodes have children we're only loading top level siblings
 	for i := 0; i < len(glRender.GLScene.GetMeshes()); i++ {
+		gl.BindVertexArray(glRender.VAO[i])
 		mesh, err := glRender.GLScene.GetMeshIx(i)
 		checkError(err)
-
 		//Add each primitive into the render object list.
 		for j := 0; j < len(mesh.Primitives); j++ {
 			renderObject := new(GLTFRenderObject)
@@ -278,22 +281,27 @@ func (glRender *GLRenderer) CreateGLTFRenderObjects() {
 
 			//Upload Vertex Buffer to GPU
 			gl.BindBuffer(gl.ARRAY_BUFFER, renderObject.VertexBufferId)
-			gl.BufferData(gl.ARRAY_BUFFER, renderObject.VertexByteLength, gl.Ptr(&(renderObject.Vertices)[renderObject.VertexByteOffset]), gl.STATIC_DRAW)
-
+			gl.BufferData(gl.ARRAY_BUFFER, renderObject.VertexByteLength, gl.Ptr(&renderObject.Vertices[renderObject.VertexByteOffset]), gl.STATIC_DRAW)
+			gl.VertexAttribPointer(0, COORDS_PER_VERTEX, gl.FLOAT, false, 0, gl.PtrOffset(0))
+			gl.EnableVertexAttribArray(0)
 			//Upload Normals Buffer to GPU
 
 			gl.BindBuffer(gl.ARRAY_BUFFER, renderObject.NormalsBufferId)
-			gl.BufferData(gl.ARRAY_BUFFER, renderObject.NormalsByteLength, gl.Ptr(&(renderObject.Normals)[renderObject.NormalsByteOffset]), gl.STATIC_DRAW)
-
+			gl.BufferData(gl.ARRAY_BUFFER, renderObject.NormalsByteLength, gl.Ptr(&renderObject.Normals[renderObject.NormalsByteOffset]), gl.STATIC_DRAW)
+			gl.VertexAttribPointer(3, COORDS_PER_VERTEX, gl.FLOAT, false, 0, gl.PtrOffset(0))
+			gl.EnableVertexAttribArray(3)
 			//Upload Vertex Buffer to GPU
+			numElements := renderObject.IndexByteLength / (BYTES_PER_SHORT)
+			kb := renderObject.IndexByteLength / 1024
+			fmt.Printf("Indices: %d [%dKB]\n", numElements, kb)
 
 			gl.BindBuffer(gl.ELEMENT_ARRAY_BUFFER, renderObject.IndexBufferId)
-			gl.BufferData(gl.ELEMENT_ARRAY_BUFFER, renderObject.IndexByteLength, gl.Ptr(&(renderObject.Indices)[renderObject.IndexByteOffset]), gl.STATIC_DRAW)
+			gl.BufferData(gl.ELEMENT_ARRAY_BUFFER, renderObject.IndexByteLength, gl.Ptr(&renderObject.Indices[renderObject.IndexByteOffset]), gl.STATIC_DRAW)
 
 			glRender.RenderObjects[i] = renderObject
+			gl.BindVertexArray(0)
 		}
 
-		gl.BindVertexArray(0)
 	}
 
 	nodes := glRender.GLScene.GetNodes()
@@ -314,7 +322,9 @@ func (glRender *GLRenderer) CreateGLTFRenderObjects() {
 			rot = make([]float32, 4)
 		}
 		M := MatrixTRS(trans, rot, scale)
-		glRender.RenderObjects[meshIdx].Model = M //Column Major for Left Matrix Mults
+		if meshIdx >= 0 && meshIdx < len(glRender.RenderObjects) {
+			glRender.RenderObjects[meshIdx].Model = M
+		}
 	}
 
 }
@@ -355,35 +365,19 @@ func (glRender *GLRenderer) Draw() error {
 	mglView := RenderState.Camera.Update()
 	gl.Clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT)
 	gl.UseProgram(glRender.GLCTX.ProgramID["default"])
-	gl.BindVertexArray(glRender.VAO)
+
 	gl.UniformMatrix4fv(glRender.GLCTX.ShaderUniforms["mvp"], 1, false, &glRender.MVPMat[0])
 	gl.UniformMatrix4fv(glRender.GLCTX.ShaderUniforms["viewMat"], 1, false, &mglView[0])
 
 	for i := 0; i < len(glRender.RenderObjects); i++ {
 
-		renderObject := glRender.RenderObjects[i]
-
 		gl.UniformMatrix4fv(glRender.GLCTX.ShaderUniforms["model"], 1, false, &glRender.RenderObjects[i].Model[0])
-
-		gl.BindBuffer(gl.ARRAY_BUFFER, renderObject.VertexBufferId)
-		gl.VertexAttribPointer(VERT_POSITION_DATA, COORDS_PER_VERTEX, gl.FLOAT, false, 0, gl.PtrOffset(0))
-		gl.EnableVertexAttribArray(VERT_POSITION_DATA)
-		gl.BindBuffer(gl.ARRAY_BUFFER, renderObject.NormalsBufferId)
-		gl.VertexAttribPointer(VERT_ATTR_NORM_DATA, COORDS_PER_VERTEX, gl.FLOAT, false, 0, gl.PtrOffset(0))
-		gl.EnableVertexAttribArray(VERT_ATTR_NORM_DATA)
-
-		//Bind IndicesAccessorIdx
-		gl.BindBuffer(gl.ELEMENT_ARRAY_BUFFER, renderObject.IndexBufferId)
-		numElements := renderObject.IndexByteLength / BYTES_PER_SHORT
-		gl.DrawElements(gl.TRIANGLES, int32(numElements), gl.UNSIGNED_SHORT, gl.PtrOffset(0))
-		gl.BindBuffer(gl.ELEMENT_ARRAY_BUFFER, 0)
-
-		gl.DisableVertexAttribArray(VERT_POSITION_DATA)
-		gl.DisableVertexAttribArray(VERT_ATTR_NORM_DATA)
+		gl.BindVertexArray(glRender.VAO[i])
+		gl.DrawElements(gl.TRIANGLES, int32(glRender.RenderObjects[i].IndexByteLength/BYTES_PER_SHORT), gl.UNSIGNED_SHORT, gl.PtrOffset(0))
+		gl.BindVertexArray(0)
 
 	}
 
-	gl.BindVertexArray(0)
 	glRender.GLHandle.SwapBuffers()
 	glfw.PollEvents()
 	return nil

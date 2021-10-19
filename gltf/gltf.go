@@ -400,7 +400,7 @@ type MaterialPBRMetallicRoughness struct {
 	BaseColorFactor []float64 `json:"baseColorFactor,omitempty"`
 
 	// The base color texture.
-	BaseColorTexture int         `json:"baseColorTexture,omitempty"`
+	BaseColorTexture interface{} `json:"baseColorTexture,omitempty"`
 	Extensions       interface{} `json:"extensions,omitempty"`
 	Extras           interface{} `json:"extras,omitempty"`
 
@@ -408,7 +408,7 @@ type MaterialPBRMetallicRoughness struct {
 	MetallicFactor float64 `json:"metallicFactor,omitempty"`
 
 	// The metallic-roughness texture.
-	MetallicRoughnessTexture int `json:"metallicRoughnessTexture,omitempty"`
+	MetallicRoughnessTexture interface{} `json:"metallicRoughnessTexture,omitempty"`
 
 	// The roughness of the material.
 	RoughnessFactor float64 `json:"roughnessFactor,omitempty"`

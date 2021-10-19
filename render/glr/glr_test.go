@@ -10,13 +10,19 @@ import (
 //Test Render Loop---
 func Test_Render(t *testing.T) {
 	fmt.Printf("Starting...\n")
-	glRender := InitRenderer()
 	runtime.LockOSThread()
-	glRender.GLHandle = InitGLFW()
 	defer glfw.Terminate()
+	glRender := InitRenderer()
+	glRender.GLHandle = InitGLFW()
 	InitOpenGL()
-	glRender.Setup("PbrSphere.gltf", 1024, 740)
+
+	if err := glRender.Setup("PbrSphere.gltf", 1024, 740); err != nil {
+		t.Errorf("Exiting...\n")
+		return
+	}
+
 	glRender.CompileShaders()
+
 	for !glRender.GLHandle.ShouldClose() {
 		glRender.Draw()
 	}

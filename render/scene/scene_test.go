@@ -8,7 +8,7 @@ import (
 
 func TestGLTFImport(t *testing.T) {
 
-	myScene := InitDSLScene("/Users/andewx/go/src/github.com/andewx/dieselfluid/resources/", "Minimal.gltf", 1024.0, 720.0)
+	myScene := InitDSLScene("/Users/andewx/go/src/github.com/andewx/dieselfluid/resources/", "PbrSphere.gltf", 1024.0, 720.0)
 	err := myScene.ImportGLTF()
 
 	if err != nil {
@@ -24,11 +24,7 @@ func TestGLTFImport(t *testing.T) {
 		}
 
 		//----------------------Test Asset type Meta --------------------------
-		gen := myScene.Root.Asset.Generator
 		ver := myScene.Root.Asset.Version
-		if gen != "Khronos glTF Blender I/O v1.6.16" {
-			t.Errorf("Krohnos Asset")
-		}
 
 		if ver != "2.0" {
 			t.Errorf("Version should be 2.0!\n")
@@ -69,6 +65,8 @@ func TestGLTFImport(t *testing.T) {
 			bufferLength := myBuffer.ByteLength
 			byteOffset := myBuffer.ByteOffset
 
+			fmt.Printf("PBRSphere ByteLength %d\n", bufferLength)
+
 			if &bufferRef == nil {
 				t.Errorf("Buffer Reference could not be retrieved")
 			}
@@ -99,7 +97,7 @@ func TestGLTFImport(t *testing.T) {
 				t.Errorf("Error retrieving mesh")
 			}
 			if i == 0 {
-				if mesh.Name != "Cube" {
+				if mesh.Name != "Sphere" {
 					t.Errorf("Cube mesh not found\n")
 				}
 			} //Go through primitives
@@ -124,38 +122,6 @@ func TestGLTFImport(t *testing.T) {
 
 		}
 
-		/*---------------Test Materials -----------------*/
-		for i := 0; i < len(myScene.Root.Materials); i++ {
-			myMat := myScene.Root.Materials[i]
-			name := myMat.Name
-			pbrMat := myMat.PbrMetallicRoughness
-			metalFac := pbrMat.MetallicFactor
-			roughFac := pbrMat.RoughnessFactor
-			baseColor := pbrMat.BaseColorFactor
-
-			if i == 0 {
-				if metalFac != 0 {
-					t.Errorf("PBR Material sucks\n")
-					return
-				}
-
-				if roughFac != 0.8045452833175659 {
-					t.Errorf("PBR Material sucks\n")
-					return
-				}
-
-				if name != "White Clay" {
-					t.Errorf("PBR Material sucks\n")
-					return
-				}
-
-				if baseColor[0] != 0.800000011920929 {
-					t.Errorf("PBR Material sucks\n")
-					return
-				}
-			}
-		}
-
 		fmt.Printf("Materials Passed (still need to check Color factor)\n")
 
 		//STILL NEED TO CHECK NODES /SAMPLERS /SCENES /SKINS / TEXTURES
@@ -165,39 +131,15 @@ func TestGLTFImport(t *testing.T) {
 			node := nodes[i]
 			mesh := node.Mesh
 			name := node.Name
-			scale := node.Scale
-			Trans := node.Translation
-			rot := node.Rotation
 
-			if i == 0 {
-				if mesh != 0 {
-					t.Errorf("Wrong mesh in the node ")
-				}
-				if name != "Cube" {
-					t.Errorf("Node test didn't pass for string name cube")
-					return
-				}
-				if scale[0] != 0.41879701614379883 {
-					t.Errorf("Node test didn't pass for scale val")
-					return
-				}
-				if Trans[0] != -2.91190242767334 {
-					t.Errorf("Node test didn't pass for trans val")
-					return
-				}
-				if rot != nil {
-					t.Errorf("Rot shouldn't exist\n")
-					return
-				}
+			if node == nil {
+				t.Errorf("Node returned nil\n")
 			}
-		}
-
-		for i := 0; i < len(myScene.Root.Scenes); i++ {
-			scene := myScene.Root.Scenes[i]
-			nodes := scene.Nodes
-			if len(nodes) != 8 {
-				t.Errorf("Not enough nodes in the scene")
-				return
+			if name == "" {
+				t.Errorf("Node.name returned nil\n")
+			}
+			if mesh < 0 {
+				t.Errorf("Node.mesh returned nil\n")
 			}
 
 			fmt.Printf("Scenes passed\n")
@@ -205,18 +147,23 @@ func TestGLTFImport(t *testing.T) {
 
 		for i := 0; i < len(myScene.Root.Textures); i++ {
 			tex := myScene.Root.Textures[i]
-			if tex != nil {
-				t.Errorf("Shouldn't be any textures")
+			if tex == nil {
+				t.Errorf("Couldn't retrieve texture")
 			}
 		}
 
 		for i := 0; i < len(myScene.Root.Samplers); i++ {
 			sampler := myScene.Root.Samplers[i]
-			if sampler != nil {
-				t.Errorf("Shoulnt be an samplers")
+			if sampler == nil {
+				t.Errorf("Couldn't retrieve sampler")
 			}
 		}
+		BufferNode, err := myScene.GetBufferIx(0)
 
+		if err != nil {
+			t.Errorf("Error Buffer Data. myScene.GetBufferIx(0) call failed")
+		}
+		fmt.Printf("PBRSphere Compact Buffer Length : %d\n", BufferNode.ByteLength)
 		fmt.Printf("------TEST:GLTF Importation Passed---------\n")
 	} // End test internal
 
