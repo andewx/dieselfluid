@@ -16,7 +16,7 @@ func Test_Render(t *testing.T) {
 	glRender.GLHandle = InitGLFW()
 	InitOpenGL()
 
-	if err := glRender.Setup("PbrSphere.gltf", 1024, 740); err != nil {
+	if err := glRender.Setup("Monkey.gltf", 1024, 740); err != nil {
 		t.Errorf("Exiting...\n")
 		return
 	}

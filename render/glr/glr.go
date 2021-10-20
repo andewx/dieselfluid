@@ -203,7 +203,7 @@ func (glRender *GLRenderer) CompileShaders() error {
 	gl.Enable(gl.DEPTH)
 	gl.Enable(gl.BLEND)
 	gl.BlendFunc(gl.SRC_ALPHA, gl.ONE_MINUS_SRC_ALPHA)
-	gl.ClearColor(0.1, 0.1, 0.1, 1.0)
+	gl.ClearColor(0.015, 0.015, 0.015, 1.0)
 
 	return nil
 }
@@ -305,7 +305,7 @@ func (glRender *GLRenderer) CreateGLTFRenderObjects() {
 	}
 
 	nodes := glRender.GLScene.GetNodes()
-
+	//NEEDS TO BE REWRITTEN
 	for i := 0; i < len(nodes); i++ {
 		node := nodes[i]
 		meshIdx := node.Mesh      //Check if field is empty
@@ -321,9 +321,9 @@ func (glRender *GLRenderer) CreateGLTFRenderObjects() {
 		if len(rot) == 0 {
 			rot = make([]float32, 4)
 		}
-		M := MatrixTRS(trans, rot, scale)
+		//	M := MatrixTRS(trans, rot, scale)
 		if meshIdx >= 0 && meshIdx < len(glRender.RenderObjects) {
-			glRender.RenderObjects[meshIdx].Model = M
+			glRender.RenderObjects[meshIdx].Model = mgl.Mat4(1.0)
 		}
 	}
 
@@ -370,12 +370,10 @@ func (glRender *GLRenderer) Draw() error {
 	gl.UniformMatrix4fv(glRender.GLCTX.ShaderUniforms["viewMat"], 1, false, &mglView[0])
 
 	for i := 0; i < len(glRender.RenderObjects); i++ {
-
+		gl.BindVertexArray(glRender.VAO[i]) //Per "Mesh" VAO
 		gl.UniformMatrix4fv(glRender.GLCTX.ShaderUniforms["model"], 1, false, &glRender.RenderObjects[i].Model[0])
-		gl.BindVertexArray(glRender.VAO[i])
 		gl.DrawElements(gl.TRIANGLES, int32(glRender.RenderObjects[i].IndexByteLength/BYTES_PER_SHORT), gl.UNSIGNED_SHORT, gl.PtrOffset(0))
 		gl.BindVertexArray(0)
-
 	}
 
 	glRender.GLHandle.SwapBuffers()
