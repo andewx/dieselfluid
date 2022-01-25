@@ -1,28 +1,26 @@
 package glr
 
 /*
-Package glr
 
-Render implementation handles Global Render Routines, Setup, Draw, CreateGLTFRenderObjects,
-Update, Clear etc...
+Global Render Interface - OpenGL
 
-Consider Refactoring Imperative Function Names and Map Concrete GlRenderer -> Typed Interface
-Renderer
+Holds render attributes and maps to windowing, event, CPU/GPU interface
 
-Note that GLR Renderer handles scene, camera, matrices, transforms, etc adding some dependencies
-
-For GO purposes however working the Core GL Exported C Functions will probably comprise the scope
-of available renderers. (Except for Realtime GI RT)
+Holds the GLTF Scene Description and Renders those objects
 */
+
 import (
 	"dslfluid.com/dsl/math/mgl"
-	"dslfluid.com/dsl/render"
 	"dslfluid.com/dsl/render/camera"
-	"dslfluid.com/dsl/render/scene"
+	"dslfluid.com/dsl/render/defs"
 	"fmt"
 	"github.com/go-gl/gl/v4.1-core/gl"
 	"github.com/go-gl/glfw/v3.3/glfw"
+	"image"
+	"image/draw"
+	_ "image/png"
 	"io/ioutil"
+	"os"
 	"strings"
 	"time"
 )
@@ -39,438 +37,482 @@ const (
 	VERT_ATTR_UV_DATA   = 9
 )
 
-//GLRenderer Holds RenderAPIContext Vars
+//VAO Index Array Positions
+const (
+	VERT_NORM_HALF            = 0
+	VERT_NORM_COLOR_HALF      = 1
+	VERT_NORM_TEX_HALF        = 2
+	VERT_NORM_TEX_COLOR_HALF  = 3
+	VERT_NORM_TEX_BINORM_HALF = 4
+	VERT_HALF                 = 5
+	VERT_COLOR_HALF           = 6
+	MAX_VAO_BINDING           = 7
+)
+
+const (
+	CAMERA_SPEED = 0.05
+)
+
+//OGLRenderer interface type
 type GLRenderer struct {
-	GLCTX         render.Context      //Maps paramaters and State
-	GLHandle      *glfw.Window        //Holds GLFW Window
-	GLScene       scene.DSLScene      //GLTF JSON
-	RenderObjects []*GLTFRenderObject //Render Description
-	MVPMat        []float32
-	VAO           []uint32
-	VBO           []uint32
-	Indices       []uint16
+	MVPMatrix  []float32
+	MVPMat     []float32
+	VAO        []uint32
+	Tex        []uint32
+	VBO        []uint32
+	ElementVBO []uint32
+	Indices    []uint16
+	Window     *glfw.Window
+	Camera     *camera.Camera
 }
 
-type GLTFRenderObject struct {
-	Indices         []byte //Short 2 Bytes * 1
-	IndexByteOffset int
-	IndexByteLength int
-	IndexBufferId   uint32
-
-	Vertices         []byte //Float 4 Bytes * 3
-	VertexByteOffset int
-	VertexByteLength int
-	VertexBufferId   uint32
-
-	Normals           []byte //Float 4 Bytes * 3
-	NormalsByteOffset int
-	NormalsByteLength int
-	NormalsBufferId   uint32
-
-	//Model Matrix
-	Model []float32
+//MouseState holds mouse state for GLFW polling
+type MouseState struct {
+	Hold     bool
+	Position [2]int
+	PosX     float64
+	PosY     float64
+	XRot     float32
+	YRot     float32
+	Dx       float32
+	Dy       float32
+	Time     time.Time
 }
 
-//Render State Global State Structure
-type RenderGlobal struct {
-	MVPMatrix      []float32
-	Camera         camera.Camera
-	Translate      mgl.Vec
-	MousePosition  [2]int
-	TimeLast       time.Time
-	MouseStateHold bool
-	KeyPressed     int
-	delT           float32
-	XT             float64
-	YT             float64
-	CamRotY        float32
-	CamRotX        float32
-	RotateTime     time.Time
-	RotateTimeLast time.Time
+//KeyState holds Key pressed state for GLFW polling
+type KeyState struct {
+	Pressed int
+	Time    time.Time
+	Vec     mgl.Vec
+	Scale   float32
+	Select  int
 }
 
-var RenderState *RenderGlobal = new(RenderGlobal)
-
-func InitRenderer() GLRenderer {
-	RenderState.Camera = camera.NewCamera(mgl.Vec{0, 0, 10})
-	return GLRenderer{}
-
+type InputState struct {
+	Keys      KeyState
+	Mouse     MouseState
+	Time      time.Time
+	DebugPass bool
 }
 
-//Setup Calls Window Context -- After setting up GLRenderer you should pass in relevant
-//OpenGL Draw Data initialization to include Shader Paths, Vertex, Indice, and Color Buffers
-//Then Call Init and Draw
-func (glRender *GLRenderer) Setup(filepath string, width float32, height float32) error {
+//Exposes static OpenGL Input as static global variable for GLFW threaded calls
+var Input *InputState = new(InputState)
 
-	//Initialize the render contexts
-	newContext := render.Context{}
-
-	if len(glRender.MVPMat) == 0 {
-		glRender.MVPMat = make([]float32, 16)
-		glRender.MVPMat = mgl.ProjectionMatF(100.0, 1.0, 1000)
+func InitGLFW(width int, height int, title string) (*glfw.Window, error) {
+	if err := glfw.Init(); err != nil {
+		return nil, fmt.Errorf("glr | Setup() - Failed glfw.Init()\n")
 	}
 
-	//Still Need Camera Location and Matrix Identities as well as animation params
-	newContext.VertexShaderPaths = make(map[string]string, MIN_PARAM_SIZE)
-	newContext.FragmentShaderPaths = make(map[string]string, MIN_PARAM_SIZE)
-	newContext.FragShaderID = make(map[string]uint32, MIN_PARAM_SIZE)
-	newContext.VertShaderID = make(map[string]uint32, MIN_PARAM_SIZE)
-	newContext.ProgramID = make(map[string]uint32, MIN_PARAM_SIZE)
-	newContext.ShaderUniforms = make(map[string]int32, MIN_PARAM_SIZE)
-	newContext.VertexShaderPaths["default"] = "../../shader/glsl/geom.vert"
-	newContext.FragmentShaderPaths["default"] = "../../shader/glsl/geom.frag"
+	glfw.WindowHint(glfw.Resizable, glfw.False)
+	glfw.WindowHint(glfw.ContextVersionMajor, 4)
+	glfw.WindowHint(glfw.ContextVersionMinor, 1)
+	glfw.WindowHint(glfw.OpenGLProfile, glfw.OpenGLCoreProfile)
+	glfw.WindowHint(glfw.OpenGLForwardCompatible, glfw.True)
+	window, err := glfw.CreateWindow(width, height, title, nil, nil)
+	if err != nil {
+		return nil, err
+	}
 
-	glRender.GLCTX = newContext
-	glRender.GLScene = scene.InitDSLScene("../../resources/", filepath, width, height)
-	if err := glRender.GLScene.ImportGLTF(); err != nil {
+	window.MakeContextCurrent()
+	window.SetMouseButtonCallback(ProcessMouse)
+	window.SetCursorPosCallback(ProcessCursor)
+	window.SetKeyCallback(ProcessInput)
+	return window, nil
+}
+
+func InitOpenGL() error {
+	if err := gl.Init(); err != nil {
 		return err
 	}
-	glRender.GLHandle.SetMouseButtonCallback(ProcessMouse)
-	glRender.GLHandle.SetCursorPosCallback(ProcessCursor)
-	glRender.GLHandle.SetKeyCallback(ProcessInput)
-	return nil
-
-}
-
-func (glRender *GLRenderer) CompileShaders() error {
-	vtxSources := make(map[string]string, MIN_PARAM_SIZE)
-	frgSources := make(map[string]string, MIN_PARAM_SIZE)
-
-	for key, path := range glRender.GLCTX.VertexShaderPaths {
-		srcVertex, err := ioutil.ReadFile(path)
-		if checkError(err) {
-			return err
-		}
-		vtxSources[key] = string(srcVertex) + "\x00"
-	}
-
-	for key, path := range glRender.GLCTX.FragmentShaderPaths {
-		srcFrag, err := ioutil.ReadFile(path)
-		if checkError(err) {
-			return err
-		}
-		frgSources[key] = string(srcFrag) + "\x00"
-	}
-
-	//Compile Vertex Shaders
-
-	//Read-In All Vertex Shaders
-	fmt.Printf("COMPILING VERTEX SHADERS\n")
-
-	for key, source := range vtxSources {
-
-		vtxSHO, err := compileShader(source, gl.VERTEX_SHADER)
-		if checkError(err) {
-			fmt.Printf("Could not compile vertex\n")
-		}
-		glRender.GLCTX.VertShaderID[key] = vtxSHO
-	}
-
-	//Compile Fragment Shaders
-	//Read In All Fragment Shaders
-	fmt.Printf("COMPILING FRAG SHADERS\n")
-	for key, source := range frgSources {
-		frgSHO, err := compileShader(source, gl.FRAGMENT_SHADER)
-		if checkError(err) {
-			fmt.Printf("Could not compile frag\n")
-		}
-		glRender.GLCTX.FragShaderID[key] = frgSHO
-	}
-
-	//Link Default Program
-	prog1 := gl.CreateProgram()
-	gl.AttachShader(prog1, glRender.GLCTX.VertShaderID["default"])
-	gl.AttachShader(prog1, glRender.GLCTX.FragShaderID["default"])
-	gl.LinkProgram(prog1)
-
-	var logLength = int32(1000)
-	log := strings.Repeat("\x00", int(logLength+1))
-	gl.GetProgramInfoLog(prog1, logLength, nil, gl.Str(log))
-	fmt.Printf("%s", log)
-
-	active := int32(0)
-	gl.GetProgramiv(prog1, gl.ACTIVE_UNIFORMS, &active)
-	fmt.Printf("SHADER UNIFORMS[%d]\n", active)
-	glRender.GLCTX.ProgramID["default"] = prog1
-
-	//Initialize Scene and Assign Camera projection and var
-	glRender.GLCTX.ShaderUniforms["mvp"] = gl.GetUniformLocation(prog1, gl.Str("mvp\x00"))
-	glRender.GLCTX.ShaderUniforms["model"] = gl.GetUniformLocation(prog1, gl.Str("model\x00"))
-	glRender.GLCTX.ShaderUniforms["viewMat"] = gl.GetUniformLocation(prog1, gl.Str("viewMat\x00"))
-
-	glRender.CreateGLTFRenderObjects()
+	version := gl.GoStr(gl.GetString(gl.VERSION))
+	fmt.Printf("OpenGL Version: %s\n", version)
 	gl.Enable(gl.DEPTH_TEST)
 	gl.Enable(gl.DEPTH)
 	gl.Enable(gl.BLEND)
 	gl.BlendFunc(gl.SRC_ALPHA, gl.ONE_MINUS_SRC_ALPHA)
-	gl.ClearColor(0.015, 0.015, 0.015, 1.0)
+	gl.ClearColor(0.15, 0.15, 0.15, 1.0)
+	return nil
+}
+
+func Renderer() *GLRenderer {
+
+	mCamera := camera.NewCamera(mgl.Vec{0, 0, 10})
+	mRenderer := new(GLRenderer)
+	mRenderer.Camera = &mCamera
+	return mRenderer
+}
+
+//Setup() - Setup GL Renderer
+func (renderer *GLRenderer) Setup(width int, height int, title string) error {
+	var err error
+
+	if height == 0 || width == 0 {
+		return fmt.Errorf("Invalid height/width parameter")
+	}
+
+	if renderer.Window, err = InitGLFW(width, height, title); err != nil {
+		return err
+	}
+
+	InitOpenGL()
+
+	aspect := float32(width) / float32(height)
+	renderer.MVPMat = make([]float32, 16)
+	renderer.MVPMat = mgl.ProjectionMatF(45.0, aspect, 1.0, 1000)
+	Input.Time = time.Now()
+
+	return nil
+
+}
+
+func (renderer *GLRenderer) AddShader(path string, gl_shader_type uint32) (uint32, error) {
+	var shaderSource string
+
+	if (gl_shader_type != gl.VERTEX_SHADER) && (gl_shader_type != gl.FRAGMENT_SHADER) {
+		return 0, fmt.Errorf("glr | AddShader() - Shader type unspecified\ngl.VERTEX_SHADER or gl.FRAGMENT_SHADER int")
+	}
+
+	cSourceString, err := ioutil.ReadFile(path)
+
+	if err != nil {
+		return 0, err
+	}
+
+	shaderSource = string(cSourceString) + "\x00"
+
+	sho, err := compileShader(shaderSource, gl_shader_type)
+
+	if err != nil {
+		return 0, err
+	}
+
+	return sho, err
+}
+
+func (renderer *GLRenderer) LinkShaders(vertexGLID uint32, fragmentGLID uint32) (uint32, error) {
+
+	prog1 := gl.CreateProgram()
+	gl.AttachShader(prog1, vertexGLID)
+	gl.AttachShader(prog1, fragmentGLID)
+	gl.LinkProgram(prog1)
+	if prog1 == gl.INVALID_VALUE || prog1 == gl.INVALID_OPERATION {
+		err := fmt.Errorf("Invalid Linking[vert %d,frag %d]\n", vertexGLID, fragmentGLID)
+		return prog1, err
+	}
+	return prog1, nil
+}
+
+func (renderer *GLRenderer) GetUniformLocation(program uint32, name string) (int32, error) {
+	loc := gl.GetUniformLocation(program, gl.Str(name+"\x00"))
+	if loc == gl.INVALID_VALUE || loc == gl.INVALID_OPERATION {
+		err := fmt.Errorf("Uniform Location %s Not Found\n", name)
+		return loc, err
+	}
+	return loc, nil
+}
+
+func (renderer *GLRenderer) ShaderLog(programGLID uint32) {
+	var logLength = int32(1000)
+	log := strings.Repeat("\x00", int(logLength+1))
+	gl.GetProgramInfoLog(programGLID, logLength, nil, gl.Str(log))
+	fmt.Printf("%s", log)
+
+	active := int32(0)
+	gl.GetProgramiv(programGLID, gl.ACTIVE_UNIFORMS, &active)
+	fmt.Printf("SHADER UNIFORMS[%d]\n", active)
+}
+
+/* Layout(num_vbo, num_tex)( error) - initializes as many VBOs and Textures as
+requested by the RenderSystem caller. The Raw OpenGL handles are then copied into corresponding
+VAO/VBO/Tex GLRenderer state objects. Initialize VAO State layouts for position, color, tex data
+descriptions.
+*/
+func (renderer *GLRenderer) Layout(num_vao int, num_vbo int, num_tex int) error {
+
+	if num_vbo < 0 || num_tex < 0 || num_vao < 0 {
+		r := fmt.Errorf("glr | Layout() - Rendersystem tried to initiate GPU memory layout with zero size param\n")
+		return r
+	}
+
+	renderer.Tex = make([]uint32, num_tex+1)
+	renderer.VAO = make([]uint32, num_vao+1)
+	renderer.VBO = make([]uint32, num_vbo+1)
+	renderer.ElementVBO = make([]uint32, num_vao+1)
+
+	gl.GenVertexArrays(int32(num_vao), &renderer.VAO[0])
+	gl.GenTextures(int32(num_tex), &renderer.Tex[0])
+	gl.GenBuffers(int32(num_vbo), &renderer.VBO[0])
+	gl.GenBuffers(int32(num_vao), &renderer.ElementVBO[0])
 
 	return nil
 }
 
-//Prepares render data for each GLTF Mesh Primitive -- move this to scene import
-func (glRender *GLRenderer) CreateGLTFRenderObjects() {
-
-	meshes := len(glRender.GLScene.GetMeshes())
-	glRender.RenderObjects = make([]*GLTFRenderObject, len(glRender.GLScene.GetMeshes()))
-	glRender.VAO = make([]uint32, meshes)
-	gl.GenVertexArrays(int32(meshes), &glRender.VAO[0])
-
-	if len(glRender.GLScene.GetMeshes()) == 0 {
-		fmt.Printf("No GLTF Meshes\n")
-		glRender.GLScene.Info()
+func (renderer *GLRenderer) BindVertexArray(vao_index int) {
+	if vao_index == -1 {
+		gl.BindVertexArray(0)
+	} else {
+		gl.BindVertexArray(renderer.VAO[vao_index])
 	}
-	//Note in real glTF nodes have children we're only loading top level siblings
-	for i := 0; i < len(glRender.GLScene.GetMeshes()); i++ {
-		gl.BindVertexArray(glRender.VAO[i])
-		mesh, err := glRender.GLScene.GetMeshIx(i)
-		checkError(err)
-		//Add each primitive into the render object list.
-		for j := 0; j < len(mesh.Primitives); j++ {
-			renderObject := new(GLTFRenderObject)
-			primitive := mesh.Primitives[j]
-			posAccessorIdx := primitive.Attributes["POSITION"]
-			normAccessorIdx := primitive.Attributes["NORMAL"]
-			indicesAccessorIdx := primitive.Indices
+}
 
-			//Setup Positional data
-			PosAccessor, PosBufferView, Err := glRender.GLScene.GetAccessorBufferView(posAccessorIdx)
-			checkError(Err)
+func (renderer *GLRenderer) VertexArrayAttr(index int, components int, gltype uint32, offset int) {
+	gl.VertexAttribPointer(uint32(index), int32(components), gltype, false, 0, gl.PtrOffset(offset))
+	gl.EnableVertexAttribArray(uint32(index))
+}
 
-			//Position RenderObject Data
-			if PosAccessor.ComponentType == gl.FLOAT {
-				renderObject.Vertices = glRender.GLScene.Buffers[PosBufferView.Buffer]
-				renderObject.VertexByteLength = PosBufferView.ByteLength
-				renderObject.VertexByteOffset = PosBufferView.ByteOffset
+/*
+BufferArrayData(vboID, width, byteSize, ref) - binds a VBO and fills its byte data
+using the simplest terms possible. The rendersystem will need to pass in the unique buffer ID
+it wants to fill. This VBO ID is not the GL generated VBO id but the reference index. The ref array
+will need to have the precomputed offset already computed so that ref[0] is the valid buffer data position.
+*/
+func (renderer *GLRenderer) BufferArrayData(vboID int, width int, offset int, ref []byte) error {
+	gl.BindBuffer(gl.ARRAY_BUFFER, renderer.VBO[vboID])
+	gl.BufferData(gl.ARRAY_BUFFER, width, gl.Ptr(&ref[offset]), gl.STATIC_DRAW)
+	return nil
+}
 
-			} else {
-				fmt.Errorf("TAG Not Implemented")
-			}
+/*
+BufferIndexData(vboID, width, byteSize, ref) - binds a VBO and fills its byte data
+using the simplest terms possible. The rendersystem will need to pass in the unique buffer ID
+it wants to fill. This VBO ID is not the GL generated VBO id but the reference index. The ref array
+will need to have the precomputed offset already computed so that ref[0] is the valid buffer data position.
+*/
+func (renderer *GLRenderer) BufferIndexData(vboID int, width int, offset int, ref []byte) error {
+	gl.BindBuffer(gl.ELEMENT_ARRAY_BUFFER, renderer.ElementVBO[vboID])
+	gl.BufferData(gl.ELEMENT_ARRAY_BUFFER, width, gl.Ptr(&ref[offset]), gl.STATIC_DRAW)
+	return nil
+}
 
-			//Index Data for Object
-			//Setup Positional data
-			_, IdxBufferView, _ := glRender.GLScene.GetAccessorBufferView(indicesAccessorIdx)
+func (renderer *GLRenderer) InvalidateBuffer(vboID int, width int) error {
+	gl.MapBufferRange(gl.MAP_INVALIDATE_BUFFER_BIT, 0, width, renderer.VBO[vboID])
+	return nil
+}
 
-			//Assumes Target
-			renderObject.Indices = glRender.GLScene.Buffers[IdxBufferView.Buffer]
-			renderObject.IndexByteLength = IdxBufferView.ByteLength
-			renderObject.IndexByteOffset = IdxBufferView.ByteOffset
+func (renderer *GLRenderer) BindArrayBuffer(vbo_index int) {
+	gl.BindBuffer(gl.ARRAY_BUFFER, renderer.VBO[vbo_index])
+}
 
-			//Normal Data For Object
-			//Setup Positional data
-			normAccessor, normBufferView, NErr := glRender.GLScene.GetAccessorBufferView(normAccessorIdx)
-			checkError(NErr)
+func (r *GLRenderer) SwapBuffers() {
+	r.Window.SwapBuffers()
+}
 
-			//Position RenderObject Data
-			if normAccessor.ComponentType == gl.FLOAT {
-				renderObject.Normals = glRender.GLScene.Buffers[normBufferView.Buffer]
-				renderObject.NormalsByteLength = normBufferView.ByteLength
-				renderObject.NormalsByteOffset = normBufferView.ByteOffset
-
-			} else {
-				fmt.Errorf("TAG Not Implemented")
-			}
-
-			//Prepare to upload buffers to GPU
-			vbos := make([]uint32, 3)
-			gl.GenBuffers(3, &vbos[0])
-
-			renderObject.VertexBufferId = vbos[0]
-			renderObject.NormalsBufferId = vbos[1]
-			renderObject.IndexBufferId = vbos[2]
-
-			//Upload Vertex Buffer to GPU
-			gl.BindBuffer(gl.ARRAY_BUFFER, renderObject.VertexBufferId)
-			gl.BufferData(gl.ARRAY_BUFFER, renderObject.VertexByteLength, gl.Ptr(&renderObject.Vertices[renderObject.VertexByteOffset]), gl.STATIC_DRAW)
-			gl.VertexAttribPointer(0, COORDS_PER_VERTEX, gl.FLOAT, false, 0, gl.PtrOffset(0))
-			gl.EnableVertexAttribArray(0)
-			//Upload Normals Buffer to GPU
-
-			gl.BindBuffer(gl.ARRAY_BUFFER, renderObject.NormalsBufferId)
-			gl.BufferData(gl.ARRAY_BUFFER, renderObject.NormalsByteLength, gl.Ptr(&renderObject.Normals[renderObject.NormalsByteOffset]), gl.STATIC_DRAW)
-			gl.VertexAttribPointer(3, COORDS_PER_VERTEX, gl.FLOAT, false, 0, gl.PtrOffset(0))
-			gl.EnableVertexAttribArray(3)
-			//Upload Vertex Buffer to GPU
-			numElements := renderObject.IndexByteLength / (BYTES_PER_SHORT)
-			kb := renderObject.IndexByteLength / 1024
-			fmt.Printf("Indices: %d [%dKB]\n", numElements, kb)
-
-			gl.BindBuffer(gl.ELEMENT_ARRAY_BUFFER, renderObject.IndexBufferId)
-			gl.BufferData(gl.ELEMENT_ARRAY_BUFFER, renderObject.IndexByteLength, gl.Ptr(&renderObject.Indices[renderObject.IndexByteOffset]), gl.STATIC_DRAW)
-
-			glRender.RenderObjects[i] = renderObject
-			gl.BindVertexArray(0)
-		}
-
+func (r *GLRenderer) LoadTexture(path string, index int) (uint32, error) {
+	imgFile, err := os.Open(path)
+	if err != nil {
+		return 0, fmt.Errorf("texture %q not found on disk: %v", path, err)
 	}
 
-	nodes := glRender.GLScene.GetNodes()
-	//NEEDS TO BE REWRITTEN
-	for i := 0; i < len(nodes); i++ {
-		node := nodes[i]
-		meshIdx := node.Mesh      //Check if field is empty
-		trans := node.Translation //3 float 65
-		if len(trans) == 0 {
-			trans = make([]float32, 3)
-		}
-		scale := node.Scale //3 float64
-		if len(scale) == 0 {
-			scale = mgl.Mat3(1.0)
-		}
-		rot := node.Rotation //4 float64
-		if len(rot) == 0 {
-			rot = make([]float32, 4)
-		}
-		//	M := MatrixTRS(trans, rot, scale)
-		if meshIdx >= 0 && meshIdx < len(glRender.RenderObjects) {
-			glRender.RenderObjects[meshIdx].Model = mgl.Mat4(1.0)
-		}
+	img, _, err := image.Decode(imgFile)
+	if err != nil {
+		return 0, err
 	}
+
+	rgba := image.NewRGBA(img.Bounds())
+	if rgba.Stride != rgba.Rect.Size().X*4 {
+		return 0, fmt.Errorf("Unsupported Stride")
+	}
+
+	draw.Draw(rgba, rgba.Bounds(), img, image.Point{0, 0}, draw.Src)
+
+	var texture uint32
+	gl.GenTextures(1, &texture)
+	gl.BindTexture(gl.TEXTURE_2D, texture)
+	gl.TexParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR)
+	gl.TexParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.LINEAR)
+	gl.TexParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE)
+	gl.TexParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE)
+	gl.TexImage2D(gl.TEXTURE_2D, 0, gl.RGBA, int32(rgba.Rect.Size().X),
+		int32(rgba.Rect.Size().Y), 0, gl.RGBA, gl.UNSIGNED_BYTE, gl.Ptr(rgba.Pix))
+
+	return texture, nil
+}
+
+func (r *GLRenderer) LoadEnvironment(path string, index int) (uint32, error) {
+	imgFile, err := os.Open(path)
+	if err != nil {
+		return 0, fmt.Errorf("texture %q not found on disk: %v", path, err)
+	}
+
+	img, _, err := image.Decode(imgFile)
+	if err != nil {
+		return 0, err
+	}
+
+	rgba := image.NewRGBA(img.Bounds())
+	if rgba.Stride != rgba.Rect.Size().X*4 {
+		return 0, fmt.Errorf("Unsupported Stride")
+	}
+
+	draw.Draw(rgba, rgba.Bounds(), img, image.Point{0, 0}, draw.Src)
+
+	var texture uint32
+
+	gl.GenTextures(1, &texture)
+	gl.BindTexture(gl.TEXTURE_CUBE_MAP, texture)
+	gl.TexParameteri(gl.TEXTURE_CUBE_MAP, gl.TEXTURE_MIN_FILTER, gl.LINEAR)
+	gl.TexParameteri(gl.TEXTURE_CUBE_MAP, gl.TEXTURE_MAG_FILTER, gl.LINEAR)
+	gl.TexParameteri(gl.TEXTURE_CUBE_MAP, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE)
+	gl.TexParameteri(gl.TEXTURE_CUBE_MAP, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE)
+	gl.TexParameteri(gl.TEXTURE_CUBE_MAP, gl.TEXTURE_WRAP_R, gl.CLAMP_TO_EDGE)
+
+	for i := 0; i < 6; i++ { //Load Faces - Properly load with proper cubic offsets
+		gl.TexImage2D(gl.TEXTURE_CUBE_MAP_POSITIVE_X+uint32(i), 0,
+			gl.RGBA, int32(rgba.Rect.Size().X), int32(rgba.Rect.Size().Y),
+			0, gl.RGBA, gl.UNSIGNED_BYTE, gl.Ptr(rgba.Pix))
+	}
+
+	gl.BindTexture(gl.TEXTURE_CUBE_MAP, 0)
+
+	return texture, nil
+}
+
+func (r *GLRenderer) SetActiveTexture(glid uint32, index uint32) {
+	gl.ActiveTexture(gl.TEXTURE0 + index)
+	gl.BindTexture(gl.TEXTURE_2D, glid)
 
 }
 
-//Constructs a Matrix from Translation scale rotation quat
-func MatrixTRS(t []float32, r []float32, s []float32) []float32 {
-	M := mgl.Mat4(1.0)
+func (renderer *GLRenderer) Draw(mesh_entities []*defs.MeshEntity, shaders *defs.ShadersMap, materials map[string]*defs.Material, mapID uint32) error {
 
-	//Trans Matrix Affine
-	T := mgl.Mat4(1.0)
-	T[12] = t[0]
-	T[13] = t[1]
-	T[14] = t[2]
-
-	S := mgl.Mat4(1.0)
-	S[0] = s[0]
-	S[5] = s[1]
-	S[10] = s[2]
-
-	M = T.MulM(S)
-
-	return M
-}
-
-func CheckGlError(op string) {
-	error := gl.GetError()
-	if error == gl.NO_ERROR {
-		return
-	}
-	fmt.Printf(op+"GL Error %d: ", error)
-}
-
-//Draw rendering routine fundamentally recognizes that a VBO draw VAO draw routine
-//Is attached by key map name to a specific shader program all vertex buffers are drawn
-//With associated shader routines - should iteratively draw meshes
-func (glRender *GLRenderer) Draw() error {
-
-	mglView := RenderState.Camera.Update()
+	mglView := renderer.Camera.Update()
 	gl.Clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT)
-	gl.UseProgram(glRender.GLCTX.ProgramID["default"])
+	gl.UseProgram(shaders.ProgramID["default"])
 
-	gl.UniformMatrix4fv(glRender.GLCTX.ShaderUniforms["mvp"], 1, false, &glRender.MVPMat[0])
-	gl.UniformMatrix4fv(glRender.GLCTX.ShaderUniforms["viewMat"], 1, false, &mglView[0])
+	gl.UniformMatrix4fv(shaders.ShaderUniforms["mvp"], 1, false, &renderer.MVPMat[0])
+	gl.UniformMatrix4fv(shaders.ShaderUniforms["view"], 1, false, &mglView[0])
+	gl.BindTexture(gl.TEXTURE_CUBE_MAP, mapID)
 
-	for i := 0; i < len(glRender.RenderObjects); i++ {
-		gl.BindVertexArray(glRender.VAO[i]) //Per "Mesh" VAO
-		gl.UniformMatrix4fv(glRender.GLCTX.ShaderUniforms["model"], 1, false, &glRender.RenderObjects[i].Model[0])
-		gl.DrawElements(gl.TRIANGLES, int32(glRender.RenderObjects[i].IndexByteLength/BYTES_PER_SHORT), gl.UNSIGNED_SHORT, gl.PtrOffset(0))
+	for i := 0; i < len(mesh_entities); i++ {
+
+		myMesh := mesh_entities[i]
+		matname := myMesh.Mesh.MaterialComponent.Name
+		material := materials[matname]
+		metal := material.MetallicRoughMaterial.Metallic
+		rough := material.MetallicRoughMaterial.Roughness
+
+		gl.Uniform1f(shaders.ShaderUniforms["metallness"], metal)
+		gl.Uniform1f(shaders.ShaderUniforms["roughness"], rough)
+
+		gl.BindVertexArray(renderer.VAO[myMesh.VAO])
+		gl.UniformMatrix4fv(shaders.ShaderUniforms["model"], 1, false, &myMesh.Mesh.TransformComponent.Model[0])
+		gl.DrawElements(gl.TRIANGLES, int32(myMesh.Mesh.IndiceComponent.IndexByteLength/BYTES_PER_SHORT), gl.UNSIGNED_SHORT, gl.PtrOffset(0))
 		gl.BindVertexArray(0)
 	}
 
-	glRender.GLHandle.SwapBuffers()
-	glfw.PollEvents()
-	return nil
-
-}
-
-func (glRender *GLRenderer) Update() error {
+	gl.BindTexture(gl.TEXTURE_CUBE_MAP, 0)
 
 	return nil
 
 }
 
-func (glRender *GLRenderer) Close() error {
+func (r *GLRenderer) Update(dt float64) error {
+	elapsed := time.Now().Sub(Input.Time).Seconds()
+	if elapsed > dt {
+		if Input.Keys.Pressed == 1 {
+			dir := r.Camera.Transform.Matrix.Get(Input.Keys.Select)
+			scale := CAMERA_SPEED * Input.Keys.Scale
+			r.MoveCamera(dir, scale)
+		}
+		if Input.Mouse.Hold == true {
+			r.Camera.RotateFPS(mgl.Vec{float32(-Input.Mouse.Dy), float32(-Input.Mouse.Dx), 0})
+		}
+		Input.Time = time.Now()
+	}
+	return nil
+}
+
+func (renderer *GLRenderer) ShouldClose() bool {
+	window := renderer.Window
+	return window.ShouldClose()
+}
+
+func (renderer *GLRenderer) Status() error {
+
+	if renderer.Window == nil {
+		return fmt.Errorf("glr | Status() - MyInput.Window not available (GLFW not intialized properly)\n")
+	}
 
 	return nil
+
+}
+
+func (r *GLRenderer) MoveCamera(dir mgl.Vec, mag float32) {
+	move := mgl.Scale(dir, mag)
+	r.Camera.Transform.Translate(move)
 }
 
 func ProcessInput(w *glfw.Window, key glfw.Key, scancode int, action glfw.Action, mods glfw.ModifierKey) {
-	cameraSpeed := float32(0.5) // adjust accordingly - Just use framerate
-	RenderState.KeyPressed = 1
-	trans := cameraSpeed
-	dir := RenderState.Camera.Transform.Matrix.Get(2)
-	ldir := RenderState.Camera.Transform.Matrix.Get(0)
-	up := RenderState.Camera.Transform.Matrix.Get(1)
+	if action == glfw.Press {
+		Input.Keys.Pressed = 1
+		Input.Keys.Time = time.Now()
+	} else {
+		Input.Keys.Pressed = 0
+	}
+
+	if action == glfw.Repeat {
+		Input.Keys.Pressed = 1
+	}
 
 	if key == glfw.KeyW {
-		//Accumulates the translation Vector
-		p := mgl.Scale(dir, -trans)
-		RenderState.Camera.Transform.Translate(p)
+		Input.Keys.Select = 2
+		Input.Keys.Scale = -1.0
 	}
 	if key == glfw.KeyS {
-		//Accumulates the translation Vector
-		p := mgl.Scale(dir, trans)
-		RenderState.Camera.Transform.Translate(p)
+		Input.Keys.Select = 2
+		Input.Keys.Scale = 1.0
 	}
 	if key == glfw.KeyA {
-		//Accumulates the translation Vector
-		//Accumulates the translation Vector
-		p := mgl.Scale(ldir, -trans)
-		RenderState.Camera.Transform.Translate(p)
+		Input.Keys.Select = 0
+		Input.Keys.Scale = -1.0
 	}
 	if key == glfw.KeyD {
-		//Accumulates the translation Vector
-		p := mgl.Scale(ldir, trans)
-		RenderState.Camera.Transform.Translate(p)
+		Input.Keys.Select = 0
+		Input.Keys.Scale = 1.0
 	}
-
 	if key == glfw.KeyUp {
-		p := mgl.Scale(up, trans)
-		RenderState.Camera.Transform.Translate(p)
+		Input.Keys.Select = 1
+		Input.Keys.Scale = 1.0
 	}
 	if key == glfw.KeyDown {
-		p := mgl.Scale(up, -trans)
-		RenderState.Camera.Transform.Translate(p)
+		Input.Keys.Select = 1
+		Input.Keys.Scale = -1.0
 	}
 	if key == glfw.KeyTab {
-		RenderState.Camera.Log()
+		//Nothing
 	}
 }
 
-//Set Mouse Callba j
+//ProcessMouse sets the mouse state structure during click events
 func ProcessMouse(w *glfw.Window, button glfw.MouseButton, action glfw.Action, mods glfw.ModifierKey) {
 	if button == glfw.MouseButtonLeft && action == glfw.Press {
-		//Save the raw xy postion intial and continuously update and poll
-		if !RenderState.MouseStateHold {
-			RenderState.MouseStateHold = true
-			RenderState.RotateTime = time.Now()
-			RenderState.RotateTimeLast = time.Now()
-
-		} else {
-			RenderState.RotateTimeLast = time.Now()
+		if !Input.Mouse.Hold {
+			Input.Mouse.Hold = true
+			Input.Mouse.Time = time.Now()
 		}
-
 	}
 	if button == glfw.MouseButtonLeft && action == glfw.Release {
-		RenderState.MouseStateHold = false
-		RenderState.XT = 0
-		RenderState.YT = 0
-		RenderState.RotateTime = time.Now()
-		RenderState.RotateTimeLast = time.Now()
+		Input.Mouse.Hold = false
+		Input.Mouse.PosX = 0
+		Input.Mouse.PosY = 0
+		Input.Mouse.Time = time.Now()
 	}
 }
 
 //ProcessCursor - GLFW Callback. While mouse is in state hold calculate a X,Y derivative
 func ProcessCursor(w *glfw.Window, xPos float64, yPos float64) {
-	if RenderState.MouseStateHold {
-		dt := RenderState.RotateTimeLast.Sub(time.Now()).Seconds()
-		if !(RenderState.XT == 0) && !(RenderState.YT == 0) {
-			xdt := (RenderState.XT - xPos) / (dt * 100)
-			ydt := (RenderState.YT - yPos) / (dt * 100)
-			RenderState.Camera.RotateFPS(mgl.Vec{float32(-ydt), float32(-xdt), 0})
-			RenderState.RotateTimeLast = time.Now()
+	if Input.Mouse.Hold {
+		dt := float64(Input.Mouse.Time.Sub(time.Now()).Seconds())
+		if !(Input.Mouse.PosX == 0) && !(Input.Mouse.PosY == 0) {
+			Input.Mouse.Dx = float32((Input.Mouse.PosX - xPos) / (dt * 500))
+			Input.Mouse.Dy = float32((Input.Mouse.PosY - yPos) / (dt * 500))
+			Input.Mouse.Time = time.Now()
 		}
-		RenderState.XT = xPos
-		RenderState.YT = yPos
+		Input.Mouse.PosX = xPos
+		Input.Mouse.PosY = yPos
+	} else {
+		Input.Mouse.Dx = 0
+		Input.Mouse.Dy = 0
 	}
 
 }

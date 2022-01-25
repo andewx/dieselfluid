@@ -10,23 +10,26 @@ import "fmt"
 //DSelector represents active referenced indices in the GLTF root
 //these indices are the top level elements available to the glTF array
 
-type DSLScene struct {
+type Scene struct {
 	Root     *gltf.GlTF
 	Filepath string
 	Buffers  [][]byte
 	BaseURI  string
 }
 
-//InitDSLScene Creates empty DSLScene struct
-func InitDSLScene(base string, filepath string, w float32, h float32) DSLScene {
-	return DSLScene{&gltf.GlTF{}, filepath, nil, base}
+//InitScene Creates empty Scene struct
+func InitScene(base string, filepath string) (Scene, error) {
+	scn := Scene{&gltf.GlTF{}, filepath, nil, base}
+	err := scn.ImportGLTF()
+	return scn, err
+
 }
 
 /*
 ImportGLTF () reads scene graph of the GLTF node object and sets up a few properties
 for the scene such as the camera and Buffers
 */
-func (scene *DSLScene) ImportGLTF() error {
+func (scene *Scene) ImportGLTF() error {
 
 	content, err := ioutil.ReadFile(scene.BaseURI + scene.Filepath)
 	if err != nil {
@@ -50,8 +53,6 @@ func (scene *DSLScene) ImportGLTF() error {
 		if bErr != nil {
 			fmt.Printf("Unable to load Buffer URI\n")
 			return fmt.Errorf("Unable to load Buffer URI\nError Message %s", bErr.Error())
-		} else {
-			fmt.Printf("Loaded %d kB from URI \n", bLength/1024)
 		}
 	}
 
@@ -67,7 +68,7 @@ func (scene *DSLScene) ImportGLTF() error {
 	return nil
 }
 
-func (scene *DSLScene) LoadURIBuffer(uri string, bufferIndex int, bufferLength int) error {
+func (scene *Scene) LoadURIBuffer(uri string, bufferIndex int, bufferLength int) error {
 
 	content, err := ioutil.ReadFile(scene.BaseURI + uri)
 	if err != nil {
@@ -88,7 +89,7 @@ func (scene *DSLScene) LoadURIBuffer(uri string, bufferIndex int, bufferLength i
 }
 
 /*ExportGLTF () marshals scene graph of the GLTF node object*/
-func (scene *DSLScene) ExportGLTF() error {
+func (scene *Scene) ExportGLTF() error {
 	content, err := scene.Root.MarshalJSON()
 	if err != nil {
 		log.Fatal(err)
@@ -100,7 +101,7 @@ func (scene *DSLScene) ExportGLTF() error {
 	return nil
 }
 
-func (scene *DSLScene) Info() error {
+func (scene *Scene) Info() error {
 	content, err := scene.Root.MarshalJSON()
 	if err != nil {
 		return err
@@ -113,17 +114,22 @@ func (scene *DSLScene) Info() error {
 // Mostly shortcuts for getting GLTF data from the nodes and their links
 
 //GetScene () gets default scene node
-func (scene *DSLScene) GetDefaultScene() int {
+func (scene *Scene) GetDefaultScene() int {
 	return scene.Root.Scene
 }
 
 //GetScenes get the scene array
-func (scene *DSLScene) GetScenes() []*gltf.Scene {
+func (scene *Scene) GetScenes() []*gltf.Scene {
 	return scene.Root.Scenes
 }
 
+//GetScenes get the scene array
+func (scene *Scene) GetTextures() []*gltf.Texture {
+	return scene.Root.Textures
+}
+
 //GetSceneIx gets the scene object at the specified index
-func (scene *DSLScene) GetSceneIx(index int) (*gltf.Scene, error) {
+func (scene *Scene) GetSceneIx(index int) (*gltf.Scene, error) {
 	ls := len(scene.GetScenes())
 	if index < 0 || index >= ls {
 		return &gltf.Scene{}, fmt.Errorf("Invalid scene")
@@ -132,12 +138,12 @@ func (scene *DSLScene) GetSceneIx(index int) (*gltf.Scene, error) {
 	return scene.GetScenes()[index], nil
 }
 
-func (scene *DSLScene) GetAccessors() []*gltf.Accessor {
+func (scene *Scene) GetAccessors() []*gltf.Accessor {
 	return scene.Root.Accessors
 }
 
 //GetSceneIx gets the scene object at the specified index
-func (scene *DSLScene) GetAccessorIx(index int) (*gltf.Accessor, error) {
+func (scene *Scene) GetAccessorIx(index int) (*gltf.Accessor, error) {
 	ls := len(scene.GetAccessors())
 	if index < 0 || index >= ls {
 		return &gltf.Accessor{}, fmt.Errorf("Invalid accessor index")
@@ -147,7 +153,7 @@ func (scene *DSLScene) GetAccessorIx(index int) (*gltf.Accessor, error) {
 
 //GetAccessorBufferView returns and accessor and its associated buffer view as a tuple + the error state
 //Error states return empty objects
-func (scene *DSLScene) GetAccessorBufferView(accessor_index int) (*gltf.Accessor, *gltf.BufferView, error) {
+func (scene *Scene) GetAccessorBufferView(accessor_index int) (*gltf.Accessor, *gltf.BufferView, error) {
 	acc, err := scene.GetAccessorIx(accessor_index)
 
 	if err != nil { //Returns empty pair on error
@@ -165,13 +171,13 @@ func (scene *DSLScene) GetAccessorBufferView(accessor_index int) (*gltf.Accessor
 }
 
 //GetBuffers returns list of buffers associated with scene
-func (scene *DSLScene) GetBuffers() []*gltf.Buffer {
+func (scene *Scene) GetBuffers() []*gltf.Buffer {
 	return scene.Root.Buffers
 }
 
 //GetBufferIx gets the buffer descr at the specified index - note this isn't the actual
 //scene buffer data storage component just the description with the URI/Bytelengths
-func (scene *DSLScene) GetBufferIx(index int) (*gltf.Buffer, error) {
+func (scene *Scene) GetBufferIx(index int) (*gltf.Buffer, error) {
 	ls := len(scene.GetBuffers())
 	if index < 0 || index >= ls {
 		return &gltf.Buffer{}, fmt.Errorf("Invalid buffer index %d", index)
@@ -180,13 +186,13 @@ func (scene *DSLScene) GetBufferIx(index int) (*gltf.Buffer, error) {
 }
 
 //GetBufferViews gets the list of buffer views
-func (scene *DSLScene) GetBufferViews() []*gltf.BufferView {
+func (scene *Scene) GetBufferViews() []*gltf.BufferView {
 	return scene.Root.BufferViews
 }
 
 //GetBufferViewIx gets the buffer descr at the specified index - note this isn't the actual
 //scene buffer data storage component just the description with the URI/Bytelengths
-func (scene *DSLScene) GetBufferViewIx(index int) (*gltf.BufferView, error) {
+func (scene *Scene) GetBufferViewIx(index int) (*gltf.BufferView, error) {
 	ls := len(scene.GetBufferViews())
 	if index < 0 || index >= ls {
 		return &gltf.BufferView{}, fmt.Errorf("Invalid BufferView index %d", index)
@@ -195,7 +201,7 @@ func (scene *DSLScene) GetBufferViewIx(index int) (*gltf.BufferView, error) {
 }
 
 //GetBufferDataIx gets the Buffer Views data reference as a slice pointer
-func (scene *DSLScene) GetBufferDataIx(buffer_view_index int) ([]byte, error) {
+func (scene *Scene) GetBufferDataIx(buffer_view_index int) ([]byte, error) {
 	bV, err := scene.GetBufferViewIx(buffer_view_index)
 
 	if err != nil { //Returns empty pair on error
@@ -206,13 +212,13 @@ func (scene *DSLScene) GetBufferDataIx(buffer_view_index int) ([]byte, error) {
 }
 
 //GetMeshes returns list of buffers associated with scene
-func (scene *DSLScene) GetMeshes() []*gltf.Mesh {
+func (scene *Scene) GetMeshes() []*gltf.Mesh {
 	return scene.Root.Meshes
 }
 
 //GetBufferIx gets the buffer descr at the specified index - note this isn't the actual
 //scene buffer data storage component just the description with the URI/Bytelengths
-func (scene *DSLScene) GetMeshIx(index int) (*gltf.Mesh, error) {
+func (scene *Scene) GetMeshIx(index int) (*gltf.Mesh, error) {
 	ls := len(scene.GetMeshes())
 	if index < 0 || index >= ls {
 		return &gltf.Mesh{}, fmt.Errorf("Invalid mesh index %d", index)
@@ -224,7 +230,7 @@ func (scene *DSLScene) GetMeshIx(index int) (*gltf.Mesh, error) {
 
 //GetBufferIx gets the buffer descr at the specified index - note this isn't the actual
 //scene buffer data storage component just the description with the URI/Bytelengths
-func (scene *DSLScene) GetMeshPrimitives(index int) ([]*gltf.MeshPrimitive, error) {
+func (scene *Scene) GetMeshPrimitives(index int) ([]*gltf.MeshPrimitive, error) {
 	ls := len(scene.GetMeshes())
 	if index < 0 || index >= ls {
 		return nil, fmt.Errorf("Invalid mesh index %d", index)
@@ -233,11 +239,11 @@ func (scene *DSLScene) GetMeshPrimitives(index int) ([]*gltf.MeshPrimitive, erro
 	return prims, nil
 }
 
-func (scene *DSLScene) GetNodes() []*gltf.Node {
+func (scene *Scene) GetNodes() []*gltf.Node {
 	return scene.Root.Nodes
 }
 
-func (scene *DSLScene) GetNodeIx(index int) (*gltf.Node, error) {
+func (scene *Scene) GetNodeIx(index int) (*gltf.Node, error) {
 	ls := len(scene.GetNodes())
 	if index < 0 || index >= ls {
 		return &gltf.Node{}, fmt.Errorf("Invalid node index %d", index)
@@ -245,11 +251,11 @@ func (scene *DSLScene) GetNodeIx(index int) (*gltf.Node, error) {
 	return scene.GetNodes()[index], nil
 }
 
-func (scene *DSLScene) GetImages() []*gltf.Image {
+func (scene *Scene) GetImages() []*gltf.Image {
 	return scene.Root.Images
 }
 
-func (scene *DSLScene) GetImageIx(index int) (*gltf.Image, error) {
+func (scene *Scene) GetImageIx(index int) (*gltf.Image, error) {
 	ls := len(scene.GetImages())
 	if index < 0 || index >= ls {
 		return &gltf.Image{}, fmt.Errorf("Invalid node index %d", index)
@@ -257,11 +263,11 @@ func (scene *DSLScene) GetImageIx(index int) (*gltf.Image, error) {
 	return scene.GetImages()[index], nil
 }
 
-func (scene *DSLScene) GetMaterials() []*gltf.Material {
+func (scene *Scene) GetMaterials() []*gltf.Material {
 	return scene.Root.Materials
 }
 
-func (scene *DSLScene) GetMaterialIx(index int) (*gltf.Material, error) {
+func (scene *Scene) GetMaterialIx(index int) (*gltf.Material, error) {
 	ls := len(scene.GetMaterials())
 	if index < 0 || index >= ls {
 		return &gltf.Material{}, fmt.Errorf("Invalid node index %d", index)
@@ -269,11 +275,11 @@ func (scene *DSLScene) GetMaterialIx(index int) (*gltf.Material, error) {
 	return scene.GetMaterials()[index], nil
 }
 
-func (scene *DSLScene) GetSamplers() []*gltf.Sampler {
+func (scene *Scene) GetSamplers() []*gltf.Sampler {
 	return scene.Root.Samplers
 }
 
-func (scene *DSLScene) GetSamplerIx(index int) (*gltf.Sampler, error) {
+func (scene *Scene) GetSamplerIx(index int) (*gltf.Sampler, error) {
 	ls := len(scene.GetSamplers())
 	if index < 0 || index >= ls {
 		return &gltf.Sampler{}, fmt.Errorf("Invalid node index %d", index)
@@ -281,7 +287,7 @@ func (scene *DSLScene) GetSamplerIx(index int) (*gltf.Sampler, error) {
 	return scene.GetSamplers()[index], nil
 }
 
-func (scene *DSLScene) GetNodeChildren(index int) ([]int, error) {
+func (scene *Scene) GetNodeChildren(index int) ([]int, error) {
 	node, err := scene.GetNodeIx(index)
 
 	if err != nil {

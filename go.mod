@@ -5,12 +5,13 @@ go 1.15
 require (
 	4d63.com/gochecknoglobals v0.0.0-20210416044342-fb0abda3d9aa // indirect
 	4d63.com/gochecknoinits v0.0.0-20210416043744-25bb07f6e4e3 // indirect
+	github.com/EngoEngine/ecs v1.0.5
 	github.com/alecthomas/gocyclo v0.0.0-20150208221726-aa8f8b160214 // indirect
 	github.com/alexkohler/nakedret v1.0.0 // indirect
 	github.com/client9/misspell v0.3.4 // indirect
 	github.com/go-gl/gl v0.0.0-20210501111010-69f74958bac0
 	github.com/go-gl/glfw v0.0.0-20210715014612-ab6297867137
-	github.com/go-gl/glfw/v3.3/glfw v0.0.0-20210410170116-ea3d685f79fb
+	github.com/go-gl/glfw/v3.3/glfw v0.0.0-20211213063430-748e38ca8aec
 	github.com/gordonklaus/ineffassign v0.0.0-20210522101830-0589229737b2 // indirect
 	github.com/jgautheron/goconst v1.5.1 // indirect
 	github.com/kisielk/errcheck v1.6.0 // indirect

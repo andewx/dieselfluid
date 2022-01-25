@@ -8,8 +8,7 @@ import (
 
 func TestGLTFImport(t *testing.T) {
 
-	myScene := InitDSLScene("/Users/andewx/go/src/github.com/andewx/dieselfluid/resources/", "PbrSphere.gltf", 1024.0, 720.0)
-	err := myScene.ImportGLTF()
+	myScene, err := InitScene("/Users/andewx/go/src/github.com/andewx/dieselfluid/resources/", "PbrSphere.gltf")
 
 	if err != nil {
 		fmt.Printf("Failed to load GLTF file from %s\n", myScene.Filepath)

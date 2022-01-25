@@ -9,7 +9,7 @@ import (
 )
 
 // Extension
-type Extension map[string]*Anonymous1
+type Extension map[string]*interface{}
 
 // Extras
 type Extras interface{}
@@ -328,13 +328,13 @@ type GlTFProperty struct {
 type Image struct {
 
 	// The index of the bufferView that contains the image. Use this instead of the image's uri property.
-	BufferView interface{} `json:"bufferView,omitempty"`
+	BufferView int         `json:"bufferView,omitempty"`
 	Extensions interface{} `json:"extensions,omitempty"`
 	Extras     interface{} `json:"extras,omitempty"`
 
 	// The image's MIME type. Required if `bufferView` is defined.
-	MimeType interface{} `json:"mimeType,omitempty"`
-	Name     interface{} `json:"name,omitempty"`
+	MimeType string `json:"mimeType,omitempty"`
+	Name     string `json:"name,omitempty"`
 
 	// The uri of the image.
 	Uri string `json:"uri,omitempty"`
@@ -400,7 +400,7 @@ type MaterialPBRMetallicRoughness struct {
 	BaseColorFactor []float64 `json:"baseColorFactor,omitempty"`
 
 	// The base color texture.
-	BaseColorTexture interface{} `json:"baseColorTexture,omitempty"`
+	BaseColorTexture TextureInfo `json:"baseColorTexture,omitempty"`
 	Extensions       interface{} `json:"extensions,omitempty"`
 	Extras           interface{} `json:"extras,omitempty"`
 
@@ -408,7 +408,7 @@ type MaterialPBRMetallicRoughness struct {
 	MetallicFactor float64 `json:"metallicFactor,omitempty"`
 
 	// The metallic-roughness texture.
-	MetallicRoughnessTexture interface{} `json:"metallicRoughnessTexture,omitempty"`
+	MetallicRoughnessTexture TextureInfo `json:"metallicRoughnessTexture,omitempty"`
 
 	// The roughness of the material.
 	RoughnessFactor float64 `json:"roughnessFactor,omitempty"`
@@ -432,7 +432,7 @@ type MeshPrimitive struct {
 
 	// A dictionary object, where each key corresponds to mesh attribute semantic and each value is the index of the accessor containing attribute's data.
 	Attributes map[string]int `json:"attributes"`
-	Extensions interface{}    `json:"extensions,omitempty"`
+	Extensions string         `json:"extensions,omitempty"`
 	Extras     interface{}    `json:"extras,omitempty"`
 
 	// The index of the accessor that contains the indices.
@@ -440,6 +440,9 @@ type MeshPrimitive struct {
 
 	// The index of the material to apply to this primitive when rendering.
 	Material int `json:"material,omitempty"`
+
+	// Name of material key
+	Name string `json:"name,omitempty"`
 
 	// The type of primitives to render.
 	Mode int `json:"mode,omitempty"`
@@ -546,7 +549,10 @@ type TextureInfo struct {
 	Extras     interface{} `json:"extras,omitempty"`
 
 	// The index of the texture.
-	Index interface{} `json:"index"`
+	Index int `json:"index"`
+
+	// The name of the texture
+	Name string `json:"name,omitempty"`
 
 	// The set index of texture's TEXCOORD attribute used for texture coordinate mapping.
 	TexCoord int `json:"texCoord,omitempty"`

@@ -7,24 +7,18 @@ import (
 	"testing"
 )
 
-//Test Render Loop---
-func Test_Render(t *testing.T) {
-	fmt.Printf("Starting...\n")
+func TestRender(t *testing.T) {
+
 	runtime.LockOSThread()
-	defer glfw.Terminate()
-	glRender := InitRenderer()
-	glRender.GLHandle = InitGLFW()
-	InitOpenGL()
+	fmt.Printf("%s\n", glfw.GetVersionString())
 
-	if err := glRender.Setup("Monkey.gltf", 1024, 740); err != nil {
-		t.Errorf("Exiting...\n")
-		return
+	ogl := Renderer()
+
+	if err := ogl.Setup(640, 480, "Pkg glr - TestRender"); err != nil {
+		t.Error(err)
 	}
-
-	glRender.CompileShaders()
-
-	for !glRender.GLHandle.ShouldClose() {
-		glRender.Draw()
+	for !ogl.Window.ShouldClose() {
+		ogl.Window.SwapBuffers()
+		glfw.PollEvents()
 	}
-
 }
