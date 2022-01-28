@@ -1,72 +1,65 @@
 package glr
 
 import (
+	"dslfluid.com/dsl/math/mgl"
 	"fmt"
 	"github.com/go-gl/gl/v4.1-core/gl"
-	"github.com/go-gl/glfw/v3.3/glfw"
-	"log"
 	"strings"
 )
 
-// initGlfw initializes glfw and returns a Window to use.
-func InitGLFW() *glfw.Window {
-	if err := glfw.Init(); err != nil {
-		panic(err)
+func checkGlError(op string) {
+	error := gl.GetError()
+	if error == gl.NO_ERROR {
+		return
 	}
-
-	glfw.WindowHint(glfw.Resizable, glfw.False)
-	glfw.WindowHint(glfw.ContextVersionMajor, 4) // OR 2
-	glfw.WindowHint(glfw.ContextVersionMinor, 1)
-	glfw.WindowHint(glfw.OpenGLProfile, glfw.OpenGLCoreProfile)
-	glfw.WindowHint(glfw.OpenGLForwardCompatible, glfw.True)
-
-	window, err := glfw.CreateWindow(1024, 740, "DSLFLUID", nil, nil)
-	checkError(err)
-	window.MakeContextCurrent()
-	window.SetKeyCallback(ProcessInput)
-	window.SetMouseButtonCallback(ProcessMouse)
-	window.SetCursorPosCallback(ProcessCursor)
-
-	return window
+	fmt.Printf(op+"GL Error %d: ", error)
 }
 
-// initOpenGL initializes OpenGL and returns an intiialized program.
-func InitOpenGL() {
-
-	if err := gl.Init(); err != nil {
-		panic(err)
-	}
-	version := gl.GoStr(gl.GetString(gl.VERSION))
-	log.Println("OpenGL version", version)
-}
-
-func checkError(err error) bool {
-	if err != nil {
-		fmt.Printf(err.Error())
-		fmt.Printf("Error loading asset\n")
-		return true
-	}
-	return false
-}
-
+/*
+compileShader(source, type) -  from go-gl/cube creates GL shader object for specified shader type
+from source string. compiles shader source and returns error log on compilation
+failure
+*/
 func compileShader(source string, shaderType uint32) (uint32, error) {
 	shader := gl.CreateShader(shaderType)
+
 	csources, free := gl.Strs(source)
 	gl.ShaderSource(shader, 1, csources, nil)
+	free()
 	gl.CompileShader(shader)
 
 	var status int32
 	gl.GetShaderiv(shader, gl.COMPILE_STATUS, &status)
 	if status == gl.FALSE {
-		var logLength = int32(1000)
-		fmt.Printf("Log length %d\n", logLength)
+		var logLength int32
+		gl.GetShaderiv(shader, gl.INFO_LOG_LENGTH, &logLength)
+
 		log := strings.Repeat("\x00", int(logLength+1))
 		gl.GetShaderInfoLog(shader, logLength, nil, gl.Str(log))
-		fmt.Printf("%s", log)
-		return 0, fmt.Errorf("GLSL Shader failed to compile\n: %v", log)
+		return 0, fmt.Errorf("failed to compile %v: %v", source, log)
 	}
-	free()
+
 	return shader, nil
+}
+
+//Constructs a Matrix from Translation scale rotation quat
+func MatrixTRS(t []float32, r []float32, s []float32) []float32 {
+	M := mgl.Mat4(1.0)
+
+	//Trans Matrix Affine
+	T := mgl.Mat4(1.0)
+	T[12] = t[0]
+	T[13] = t[1]
+	T[14] = t[2]
+
+	S := mgl.Mat4(1.0)
+	S[0] = s[0]
+	S[5] = s[1]
+	S[10] = s[2]
+
+	M = T.MulM(S)
+
+	return M
 }
 
 func SizeGL(typeID string) uint32 {

@@ -539,10 +539,9 @@ func ProjectionMat(l float32, r float32, t float32, b float32, n float32, f floa
 }
 
 //Projection Mat creates a projection Mat
-func ProjectionMatF(fov float32, n float32, f float32) Mat {
+func ProjectionMatF(fov float32, aspect float32, n float32, f float32) Mat {
 	s := 1 / (float32(math.Tan(float64((fov / 2) * (3.141529 / 180)))))
-	proj := Mat{s, 0, 0, 0, 0, s, 0, 0, 0, 0, (-f / (f - n)), (-f * n) / (f - n), 0, 0, -1, 0}
-	//	proj := Mat4{2 * n / (r - l), 0, (r + l) / (r - l), 0, 0, (2 * n) / (t - b), (t + b) / (t - b), 0, 0, 0, (-(f + n) / (f - n)), (-2 * f * n) / (f - n), 0, 0, -1, 0} //scratch a pixel projection Mat
+	proj := Mat{s / aspect, 0, 0, 0, 0, s, 0, 0, 0, 0, (-f / (f - n)), (-f * n) / (f - n), 0, 0, -1, 0}
 	return proj
 }
 
