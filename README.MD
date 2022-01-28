@@ -19,6 +19,8 @@ DslFluid also comes with its own render packages which can be used in other go
 projects as part of this open source project. See the ```render/glr``` package
 for the main rendering methods. 
 
+![Screeshot](rendersphere.png?raw=true "Render Sphere")
+
 ## External Dependencies:
 Go-Gl
 Go GLFW
