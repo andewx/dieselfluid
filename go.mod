@@ -8,6 +8,8 @@ require (
 	github.com/EngoEngine/ecs v1.0.5
 	github.com/alecthomas/gocyclo v0.0.0-20150208221726-aa8f8b160214 // indirect
 	github.com/alexkohler/nakedret v1.0.0 // indirect
+	github.com/asticode/go-astikit v0.15.0
+	github.com/asticode/go-astilectron v0.27.0
 	github.com/client9/misspell v0.3.4 // indirect
 	github.com/go-gl/gl v0.0.0-20210501111010-69f74958bac0
 	github.com/go-gl/glfw v0.0.0-20210715014612-ab6297867137

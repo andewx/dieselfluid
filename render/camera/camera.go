@@ -18,6 +18,7 @@ type Camera struct {
 	Pos        mgl.Vec
 	Rot        mgl.Vec
 	Front      mgl.Vec
+	Exposure   float32
 }
 
 //Camera FPS Euler Decomposition Matrix
