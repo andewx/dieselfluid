@@ -51,9 +51,8 @@ type Attenuated struct {
 //ray paths. Typically position is not a factor for directional lights but we
 //may model occlusions etc with a position
 type Directional struct {
-	Pos  mgl.Vec
-	Lum  Source
-	Norm mgl.Vec
+	Pos mgl.Vec
+	Lum Source
 }
 
 //Area lights are attenuated lights with a restrictive projected solid

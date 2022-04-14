@@ -1,7 +1,10 @@
 package light
 
-import "github.com/andewx/dieselfluid/math/mgl"
-import "math"
+import (
+	"math"
+
+	"github.com/andewx/dieselfluid/math/mgl"
+)
 
 /*
 Sky environment lighting model.
@@ -18,7 +21,6 @@ const (
 	AXIAL_TILT       = 23.5      //Degrees
 	CLEAR_LUX        = 105000.0  //Sun Lumens
 	ANGULAR_VELOCITY = 15.0      //per hour
-	NYC_SM           = 75.0      //Standard Meridian NYC
 	MDSL             = 1000.0    //Molecular density at sea level
 	IOR_AIR          = 1.000293  //IOR
 	RLH_440          = 0.0000331 //RAYLEIGTH SCATTER COEFFICIENT SEA LEVEL 440NM (BLUE)
@@ -29,11 +31,13 @@ const (
 )
 
 //Sky Environment
-type SkyEnvironment struct {
-	Lgt    Light
-	Spd    SampledSpectrum
-	Coords SolarCoords
-	Dir    mgl.Vec
+type Sky struct {
+	Lgt     Light
+	Spd     Spectrum
+	Coords0 mgl.Polar //Orbtial Solar System Earth 2 Sun Polar Coordinate
+	Earth   *EarthCoords
+	Day     float32
+	Dir     mgl.Vec //Euclidian Sun Direction
 }
 
 type ScatterCoefficients struct {
@@ -42,32 +46,40 @@ type ScatterCoefficients struct {
 	SK_680 float32
 }
 
-type SolarCoords struct {
-	Lgt    Light   //Light Properties
-	Jul    float64 //Julian Date
-	Tm     float64 //Solar Time
-	Decl   float64 //Solar Declination
-	Atten  float32 //Light Luminance Attenuation Factor
-	Zen    float64 //Solar Zenith
-	Az     float64 //Solar Azimuth
-	Sm     float64 //Standard Meridian Longitutde
-	Lat    float64 //latitude
-	Long   float64 //Longitude
-	Dir    mgl.Vec //Ray Direction
-	RayDir mgl.Vec //Ray Direction
-}
-
 //Scatter Coefficients
-func Alloc_ScatterCoeff() *ScatterCoefficients {
+func NewScatterCoefficients() *ScatterCoefficients {
 	return &ScatterCoefficients{RLH_440, RLH_550, RLH_680}
 }
 
 //Allocates Default Data Structure and Solar Coords Structs
-func Alloc_SkyEnv() *SkyEnvironment {
-	return nil
+func NewSky() *Sky {
+	sky := Sky{}
+	sky.Earth = NewEarth(0, 0, 0)
+	sky.Dir = mgl.Vec{}
+	sky.Coords0 = mgl.Polar{}
+	sky.Lgt = Directional{mgl.Vec{0, 1, 0}, Source{mgl.Vec{1, 1, 1}, 150, WATTS}}
+	sky.Spd = InitSunlight(20)
+	sky.Dir = mgl.Vec{}
+	return &sky
 }
 
-func (sky *SkyEnvironment) BuildSkyBox() {
+//Updates Frame of Reference Solar Coordinates with regards to Decimal Day Local Time
+func (sky *Sky) UpdateDay(day float32) error {
+	var err error
+	sky.Day = day
+	polar := mgl.Polar{1, 0, 0}
+	//Orbital Coordinates + Earth Axial Tilt
+	solarRotation := mgl.Polar{1, -day / 365.0 * 2 * PI, -23.44 * mgl.DEG2RAD}
+	//Rotate Azimuthal Day
+	polar.Add(solarRotation).AddAzimuth(Day2Rotation(day))
+	//Rotate Lat / Long Coords - Minus Standard Meridian
+	polar.Add(sky.Earth.PolarCoord).AddAzimuthDegrees(-sky.Earth.StandardMeridian)
+	sky.Coords0 = polar
+	sky.Dir, err = mgl.Sphere2Vec(sky.Coords0)
+	return err
+}
+
+func (sky *Sky) BuildSkyBox() {
 	//Update Sky Position
 	//Initialize Spectral Sun Data
 	//Initialize CIE XYZ Structures
@@ -75,6 +87,8 @@ func (sky *SkyEnvironment) BuildSkyBox() {
 	//Conduct Sampler Ray Pattern, Store RGB Results in Cube Map Relay Cube to Renderer
 }
 
+//Updates scaterring coefficients based on the parameter height calcualtes
+//approx air density as exponential parameter normalized in respect to p0 sea level density
 func (strct *ScatterCoefficients) UpdateHeight(h float32) {
 	hg := float64(h)
 	k := float32(math.Exp(-hg / HR))
@@ -96,20 +110,10 @@ func MiePhase(u float32) float32 {
 
 //Returns rayleigh scatter coefficients for depth and wavelength of light
 //This is a utility that must be integrated across an SPD
-func (sun *SolarCoords) RayleighCoeff(h float64, km float64) float64 {
+func (sun *EarthCoords) RayleighCoeff(h float64, km float64) float64 {
 	if h <= 0 {
 		h = 0.001
 	}
 	hr := 8.0 //Scale Height KM
 	return (8 * PI * PI * PI * (IOR_AIR - 1) * (IOR_AIR - 1) * math.Exp(-h/hr)) / (3 * MDSL * km * km * km * km)
-}
-
-//Luminance&Color mapping to sun angle
-func (sun *SkyEnvironment) Color(hour float32) Source {
-	h := HR2RAD(hour)
-	mLux := sun.Lgt.Lx()
-	fac := 0.3 * float32(math.Sin(float64(h)))
-	nRGB := mgl.Scale(mLux.RGB, fac)
-	lum := mLux.Flux * fac
-	return Source{nRGB, lum, 0}
 }
