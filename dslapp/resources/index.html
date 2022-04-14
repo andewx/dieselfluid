@@ -1,0 +1,143 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+
+  <!-- Basic Page Needs
+  –––––––––––––––––––––––––––––––––––––––––––––––––– -->
+  <meta charset="utf-8">
+  <title>Diesel Fluid</title>
+  <meta name="description" content="Diesel Fluid is a cross platform Real-Time Fluid Rendering System">
+  <meta name="author" content="andewx">
+
+  <!-- Mobile Specific Metas
+  –––––––––––––––––––––––––––––––––––––––––––––––––– -->
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+
+  <!-- FONT
+  –––––––––––––––––––––––––––––––––––––––––––––––––– -->
+  <style>
+  @import url('https://fonts.googleapis.com/css2?family=Anek+Bangla:wght@200&family=Baloo+2&family=Roboto+Condensed:wght@300&display=swap');
+  </style>
+
+  <!-- CSS
+  –––––––––––––––––––––––––––––––––––––––––––––––––– -->
+  <link rel="stylesheet" href="css/normalize.css">
+  <link rel="stylesheet" href="css/skeleton.css">
+  <link rel="stylesheet" href="css/themes.css">
+  <link rel="stylesheet" href="css/simple_ui.css">
+  <link rel="stylesheet" href="css/scaffold.css">
+  <link rel="stylesheet" href="css/micons/micons.css">
+
+
+  <!-- Favicon
+  –––––––––––––––––––––––––––––––––––––––––––––––––– -->
+  <link rel="icon" type="image/png" href="images/favicon.png">
+
+</head>
+<body class="theme_dark">
+
+  <!-- Left Navigation Container
+  –––––––––––––––––––––––––––––––––––––––––––––––––– -->
+  <div class="toolbar">
+    <div class="widget-large">File</div>
+    <div class="widget-large">Edit</div>
+    <div class="widget-large">View</div>
+    <div class="widget-large">Options</div>
+    <div class="widget-large">Layout</div>
+    <div class="widget-large">Render</div>
+    <div class="widget-large">Fluid</div>
+  </div>
+
+  <div class="layout-flex-container">
+
+    <div class="left-container two">
+        <div class="tree-level">
+          <div class="tree-node"><div class="widget-small icon-angle-down"></div><div class="widget-small icon-folder"></div>dieselfluid.gltf
+            <div class="tree-level">
+              <div class="tree-node">
+                <div class="widget-small icon-angle-right"></div><div class="widget-small icon-folder"></div>Buffers
+              </div>
+              <div class="tree-node">
+                <div class="widget-small icon-angle-right"></div><div class="widget-small icon-folder"></div>Meshes
+              </div>
+              <div class="tree-node">
+                <div class="widget-small icon-angle-right"></div><div class="widget-small icon-folder"></div>Textures
+              </div>
+              <div class="tree-node">
+                <div class="widget-small icon-angle-right"></div><div class="widget-small icon-folder"></div>Samples
+              </div>
+              <div class="tree-node">
+                <div class="widget-small icon-angle-right"></div><div class="widget-small icon-folder"></div>Shaders
+              </div>
+            </div>
+          </div>
+        </div>
+    </div>
+
+    <div class="right-container">
+      <div class="display-container">
+         <div class="tab-container">
+           <div class="tab-item">Grid</div>
+           <div class="tab-item">Fluid</div>
+           <div class="tab-item">Render</div>
+           <div class="tab-item">Lights</div>
+           <div class="tab-item">Domains</div>
+           <div class="tab-item">Bounds</div>
+           <div class="tab-item">Meshes</div>
+           <div class="tab-item">Materials</div>
+           <div class="tab-item">Shaders</div>
+           <div class="tab-item">PBRT</div>
+         </div>
+       </div>
+       <div class="tools-container">
+         <div class="tools-form">
+         <legend class="label-main">Light</legend>
+         <fieldset>
+         <div class="input-line">
+         <label class="label-input">Name</label><input class="inline-input item-medium" type="text" chars="45"/>
+         </div>
+         <div class="input-line">
+         <label class="label-input">Type</label><input class="inline-input item-medium" type="text" chars="45"/>
+         </div>
+         <div class="input-line">
+         <label class="label-input">Position</label>
+          <div class="mini-label">X:</div><input class="inline-input item-small" type="text" chars="4"/><div class="mini-label">Y:</div><input class="inline-input item-small" type="text" chars="4"/><div class="mini-label">Z:</div><input class="inline-input item-small" type="text" chars="4"/>
+          </div>
+          <div class="input-line">
+         <label class="label-input">Infinite</label><input class="inline-input item-small" type="checkbox"/>
+         <label class="label-input">Area</label><input type="checkbox"/>
+         </div>
+         <div class="input-line">
+         <label class="label-input">Power</label><input class="inline-input item-small" type="text" chars="4"/>
+         </div>
+         <div class="input-line">
+         <label class="label-input">RGB Color</label> <div class="mini-label">R:</div> <input class="inline-input item-small" type="text" chars="4"/><div class="mini-label">G:</div> <input class="inline-input item-small" type="text" chars="4"/><div class="mini-label">B:</div> <input class="inline-input item-small" type="text" chars="4"/>
+         </div>
+         <div class="input-line">
+         <label class="label-input">Spectral Graph</label><input class="inline-input item-medium" type="text" chars="80"/>
+         </div>
+       </fieldset>
+       </div>
+       </div>
+     </div>
+   </div>
+
+   <footer>
+     <div class="info-text-region">
+       <div class="info-item">dslapp/resource/material-sphere.gltf*</div>
+       <div class="info-item">256kb</div>
+       <div class="info-item">Vertices: 100432</div>
+       <div class="info-item">Indices: 1534</div>
+       <div class="info-item">Fluid EOS: 7.4</div>
+       <div class="info-item">Particle/Grid Count: 1203042</div>
+       <div class="info-item">Frames/Simulation Second: 356</div>
+    </div>
+   </footer>
+
+
+
+
+<!-- End Document
+  –––––––––––––––––––––––––––––––––––––––––––––––––– -->
+</body>
+</html>

@@ -1,0 +1,97 @@
+/*Generalize theme selection names*/
+
+/*
+--rich-black-fogra-29: #011627ff;
+--imperial-red: #f71735ff;
+--turquoise: #41ead4ff;
+--baby-powder: #fdfffcff;
+--orange-peel: #ff9f1cff;*/
+
+:root{
+  --dark: #0D0E0E;
+  --charcoal: #111214;
+  --matte: #161819;
+  --dust: #26282C;
+  --imperial-red: #f71735ff;
+  --pure-white: #fff;
+  --heavy-black: #000;
+  --faded-black: #343333ff;
+  --muted-gray: #888888;
+  --jet: #2d2d2aff;
+  --cotton-candy: #eeb1d5ff;
+  --viridian-green: #119da4ff;
+  --february-red: #c14953ff;
+  --bone: #e5dcc5ff;
+  --chalk: #92979f;
+  --ivory: #aaadac;
+}
+
+/*Theme skinning*/
+.theme_dark{
+  background-color: var(--matte);
+  color: var(--pure-white);
+}
+
+.theme_light{
+  background-color: var(--pure-white);
+  color: var(--heavy-black);
+}
+
+/*------------------------------------------------------*/
+/*                 Theme Headers          */
+/*------------------------------------------------------*/
+
+.theme_dark_header{
+  color:var(--DA);
+}
+
+.theme_light_header{
+  color:var(--dark);
+}
+
+
+/*------------------------------------------------------*/
+/*                 Theme Panels         */
+/*------------------------------------------------------*/
+
+/* Div panel classes emerald*/
+
+.light-default{
+  background-color: var(--pure-white);
+  color: var(--heavy-black);
+}
+
+.dark-default{
+  background-color: var(--dark);
+  color: var(--ivory);
+}
+
+.panel{
+    background-color: var(--charcoal);
+    color: var(--bone);
+}
+
+/* Div panel classes*/
+.editor{
+    background-color: var(--matte);
+    color: var(--chalk);
+}
+
+.console{
+  background-color: var(--dark);
+  color: var(--bone);
+}
+
+.active-text{
+  color: var(--pure-white);
+}
+
+.highlight-text{
+  color:var(--viridian-green);
+}
+
+
+
+/*--------------------------------*/
+
+/*---------------------------------*/

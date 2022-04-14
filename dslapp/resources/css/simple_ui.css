@@ -1,0 +1,21 @@
+/*--------------------------------*/
+/*    Select Text                 */
+/*---------------------------------*/
+
+.select_text_light{
+  color: var(--heavy_black);
+  cursor:pointer;
+}
+
+.select_text_light:hover{
+  color: var(--B);
+}
+
+.select_text_dark{
+  color: var(--pure-white);
+  cursor:pointer;
+}
+
+.select_text_dark:hover{
+  color: var(--C);
+}
