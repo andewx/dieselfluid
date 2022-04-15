@@ -1,11 +1,15 @@
 package light
 
 import (
+	"math"
+
 	"github.com/andewx/dieselfluid/math/mgl"
 )
 
 const (
 	EARTH_RAD = 6371.0
+	HR        = 12.1
+	DENSITY0  = 1.225 //KG/M^3
 )
 
 type EarthCoords struct {
@@ -15,6 +19,7 @@ type EarthCoords struct {
 	PolarCoord       mgl.Polar  //Polar Axis offset
 	StandardMeridian float32    //Longitude Standard Meridian For Local Time Offsets
 	DomainOffset     [2]float32 //Domain offsets for polar sampling of sky depths
+	GreaterSphere    mgl.Polar  //Atmospheric Polar Parameters Polar Parameters
 }
 
 //Declare New Sun Environment with Standard Merdian time set for NYC
@@ -25,6 +30,7 @@ func NewEarth(lat float32, long float32, day float32) *EarthCoords {
 	myEarth.Day = day
 	myEarth.PolarCoord = mgl.Polar{EARTH_RAD, Day2Rotation(day), mgl.DEG2RAD * lat} //KM
 	myEarth.getPolarSamplerDomain()
+	myEarth.GreaterSphere = mgl.Polar{EARTH_RAD + HR, 0, 0}
 	return &myEarth
 }
 
@@ -32,20 +38,31 @@ func Day2Rotation(day float32) float32 {
 	return day / 24.0 * 2 * PI
 }
 
+func (earth *EarthCoords) GetRadius() float32 {
+	return earth.PolarCoord[0]
+}
+
 //Takes clamped [U,V] polar coordinates from [-1,1.0] and returns the ray depth
-//Returns vector with magnitude to fixed point in sky
-func (earth *EarthCoords) GetDepth(uv [2]float32) mgl.Vec {
+//Returns vector with magnitude to fixed point in sky in valid coordinates
+func (earth *EarthCoords) GetSample(uv [2]float32) mgl.Vec {
 	uv[0] = mgl.Clamp1f(uv[0], -1.0, 1.0)
 	uv[1] = mgl.Clamp1f(uv[1], -1.0, 1.0)
-	atmosphereCoords := mgl.Polar{EARTH_RAD + 12.1, earth.PolarCoord[0] + uv[0]*earth.DomainOffset[0], earth.PolarCoord[1] + uv[1]*earth.DomainOffset[1]}
+	atmosphereCoords := mgl.Polar{EARTH_RAD + HR, earth.PolarCoord[0] + uv[0]*earth.DomainOffset[0], earth.PolarCoord[1] + uv[1]*earth.DomainOffset[1]}
 	rE_Vec, _ := mgl.Sphere2Vec(earth.PolarCoord)
 	rSK_Vec, _ := mgl.Sphere2Vec(atmosphereCoords)
 	return mgl.Sub(rSK_Vec, rE_Vec)
 }
 
-//Gets Polar Sky Visibility Based on Earth Point Location and scanning rotation
-//Checks where Rotated Polar Coordination Vector is Perp. Should only realistically
-//Need to check once for the bounds widths
+func (earth *EarthCoords) GetSampleDepth(sample mgl.Vec) float32 {
+	mVec, _ := mgl.Sphere2Vec(earth.PolarCoord)
+	return mgl.SinDot(mVec, sample) * sample.Mag()
+}
+
+func (earth *EarthCoords) GetSampleDensity(sample mgl.Vec) float32 {
+	return DENSITY0 * float32(math.Exp(float64(-(earth.GetSampleDepth(sample) / HR))))
+}
+
+//Gets when rotated earth tangent vector and tangent 2 atomospheric perion vectors are parallel
 func (earth *EarthCoords) getPolarSamplerDomain() [2]float32 {
 
 	rE := earth.PolarCoord.Copy() // EARTH

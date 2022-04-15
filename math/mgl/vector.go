@@ -414,6 +414,7 @@ func (a Vec) Tan(n Vec) Vec {
 }
 
 //RaySphereIntersection Calculates the Intersection Points for a Ray and Sphere
+//r0 is ray origin , d0 direction , c is the sphere origin, r is the radius
 func RaySphereIntersection(r0 Vec, d0 Vec, c Vec, r float32) (Vec, bool) {
 	mVec := Vec{}
 	vpc := Sub(c, r0)
@@ -449,6 +450,11 @@ func RaySphereIntersection(r0 Vec, d0 Vec, c Vec, r float32) (Vec, bool) {
 		inter := Add(r0, Scale(d0, di1))
 		return inter, true
 	}
+}
+
+func SinDot(a Vec, b Vec) float32 {
+	cosT := Dot(a, b) * (a.Mag() * b.Mag())
+	return float32(math.Sqrt(1.0 - float64(cosT*cosT)))
 }
 
 //---------------INCLUDE BLAS64 Extended Functions and Wrappers here----------

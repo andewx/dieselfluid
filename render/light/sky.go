@@ -1,7 +1,13 @@
 package light
 
 import (
+	"fmt"
+	"image"
+	"image/color"
+	"image/png"
+	_ "image/png"
 	"math"
+	"os"
 
 	"github.com/andewx/dieselfluid/math/mgl"
 )
@@ -14,41 +20,33 @@ we simulate atmospheric scattering processes via Rayleigh/Mie Scattering.
 
 The resulting model can be sampled generating 3D Sampler Textures producing a
 realistic sky environment mode
+
+Compute Intensive Consider putting this into a job interface for progress and halts
 */
 const (
 	PI               = 3.141529
-	SEASONAL_PERIOD  = 181.8
 	AXIAL_TILT       = 23.5      //Degrees
 	CLEAR_LUX        = 105000.0  //Sun Lumens
-	ANGULAR_VELOCITY = 15.0      //per hour
 	MDSL             = 1000.0    //Molecular density at sea level
 	IOR_AIR          = 1.000293  //IOR
 	RLH_440          = 0.0000331 //RAYLEIGTH SCATTER COEFFICIENT SEA LEVEL 440NM (BLUE)
 	RLH_550          = 0.0000135 //RAYLEIGTH SCATTER COEFFICIENT SEA LEVEL 550NM (GREEN)
 	RLH_680          = 0.0000058 //RAYLEIGTH SCATTER COEFFICIENT SEA LEVEL 680NM (RED)
-	HR               = 8.2500000 //HEIGHT ATMOSHPEHRE IN KM APPROXIMATE
 	MIE              = 0.00210   //MIE SCATTER COEFFICIENT
+	RAYLEIGH_SAMPLES = 25        //RAYLEIGH sampling
+	ATTEN_SAMPLES    = 10        //MIE SAMPLING
+	ATTENUATION      = 0.00250   //Attenuation of Light in WATTS per Density
+
 )
 
 //Sky Environment
 type Sky struct {
-	Lgt     Light
+	Light   Light
 	Spd     Spectrum
 	Coords0 mgl.Polar //Orbtial Solar System Earth 2 Sun Polar Coordinate
 	Earth   *EarthCoords
 	Day     float32
 	Dir     mgl.Vec //Euclidian Sun Direction
-}
-
-type ScatterCoefficients struct {
-	SK_440 float32
-	SK_550 float32
-	SK_680 float32
-}
-
-//Scatter Coefficients
-func NewScatterCoefficients() *ScatterCoefficients {
-	return &ScatterCoefficients{RLH_440, RLH_550, RLH_680}
 }
 
 //Allocates Default Data Structure and Solar Coords Structs
@@ -57,7 +55,7 @@ func NewSky() *Sky {
 	sky.Earth = NewEarth(0, 0, 0)
 	sky.Dir = mgl.Vec{}
 	sky.Coords0 = mgl.Polar{}
-	sky.Lgt = Directional{mgl.Vec{0, 1, 0}, Source{mgl.Vec{1, 1, 1}, 150, WATTS}}
+	sky.Light = Directional{mgl.Vec{0, 1, 0}, Source{mgl.Vec{1, 1, 1}, 150, WATTS}}
 	sky.Spd = InitSunlight(20)
 	sky.Dir = mgl.Vec{}
 	return &sky
@@ -79,25 +77,113 @@ func (sky *Sky) UpdateDay(day float32) error {
 	return err
 }
 
-func (sky *Sky) BuildSkyBox() {
-	//Update Sky Position
-	//Initialize Spectral Sun Data
-	//Initialize CIE XYZ Structures
-	//Create Sphere Sampler Pattern - Map Sphere Coverage Pattern to 6 x 128 x 128 Cube Faces
-	//Conduct Sampler Ray Pattern, Store RGB Results in Cube Map Relay Cube to Renderer
+func (sky *Sky) CreateTexture() {
+	wd, _ := os.Getwd()
+	fmt.Printf("td:Add Texture Folder Select Prompt\n")
+	fmt.Printf("Working Dir: %s\n", wd)
+	sp := "/Users/briananderson/go/src/github.com/dieselfluid/SKY.png"
+	rgbs := sky.ComputeAtmosphere(45, 45)
+	corner := image.Point{0, 0}
+	bottom := image.Point{45, 45}
+	img := image.NewRGBA(image.Rectangle{corner, bottom})
+	index := 0
+	for x := 0; x < 45; x++ {
+		for y := 0; y < 45; y++ {
+			r := uint8(rgbs[index][0] * 255)
+			g := uint8(rgbs[index][1] * 255)
+			b := uint8(rgbs[index][2] * 255)
+			img.Set(x, y, color.RGBA{r, g, b, 0xff})
+			index++ //(x*y)+y ??????
+		}
+	}
+
+	//Encode as PNG
+	f, _ := os.Create(sp)
+	png.Encode(f, img)
+
 }
 
-//Updates scaterring coefficients based on the parameter height calcualtes
-//approx air density as exponential parameter normalized in respect to p0 sea level density
-func (strct *ScatterCoefficients) UpdateHeight(h float32) {
-	hg := float64(h)
-	k := float32(math.Exp(-hg / HR))
-	strct.SK_440 = RLH_440 * k
-	strct.SK_550 = RLH_550 * k
-	strct.SK_680 = RLH_680 * k
+//Maps texel coordinates to spherical coordinate sampler values (-1,1) and stores
+//resultant map in single texture.
+func (sky *Sky) ComputeAtmosphere(uSampleDomain int, vSampleDomain int) []mgl.Vec {
+	sizeT := uSampleDomain * vSampleDomain
+	tex := make([]mgl.Vec, sizeT)
+	index := 0
+	for x := -1.0; x < 1.0; x += 2.0 / float64(uSampleDomain) {
+		for y := -1.0; y < 1.0; y += 2.0 / float64(vSampleDomain) {
+			var uv [2]float32
+			uv[0] = float32(x)
+			uv[1] = float32(y)
+			sample := sky.Earth.GetSample(uv)
+			tex[index] = sky.VolumetricScatterRay(sample, mgl.Vec{0, 1, 0})
+			index++
+		}
+	}
+	return tex
 }
 
-func RayleigthPhase(u float32) float32 {
+//Given a sampling vector and a viewing direction calculate RGB stimulus return
+//Based on the Attenuation/Mie Phase Scatter/RayleighScatter Terms
+func (sky *Sky) VolumetricScatterRay(sample mgl.Vec, view mgl.Vec) mgl.Vec {
+
+	sampleStep := float32(1.0 / RAYLEIGH_SAMPLES)
+	viewSample := mgl.Vec{}
+	rayleighDensity := float32(0.0)
+	rgb := mgl.Vec{}
+
+	//Construct initial sampler ray
+	rE_Vec, _ := mgl.Sphere2Vec(sky.Earth.PolarCoord)
+
+	//Calculate Ray Attenuation (Mie Scatter-Attenuation and Rayleigh Scatter)
+	//Density are related to scatter density
+	for i := 1; i <= RAYLEIGH_SAMPLES; i++ {
+		viewSample = mgl.Scale(sample, float32(i)*sampleStep)
+		sampleDensity := sky.Earth.GetSampleDensity(viewSample)
+		rayleighDensity += sampleDensity //Rayleight
+		viewSampleOrigin := mgl.Add(viewSample, rE_Vec)
+		viewSampleSphereIntersection, flag := mgl.RaySphereIntersection(sky.Dir, viewSampleOrigin,
+			mgl.Vec{0, 0, 0}, sky.Earth.GreaterSphere.Radius())
+
+		if !flag {
+			fmt.Printf("No Ray Sphere Intersection")
+			return mgl.Vec{}
+		}
+
+		lightRaySegment := mgl.Sub(viewSampleOrigin, viewSampleSphereIntersection)
+		//Compute Optical Depth For Light Attenuation
+		attenuationSample := float32(sampleDensity)
+		attenuationSampleStep := float32(1.0 / ATTEN_SAMPLES)
+
+		//Compute Light Ray Attenuation
+		for j := 1; j <= ATTEN_SAMPLES; j++ {
+			attenuationSampleVec := mgl.Scale(lightRaySegment, attenuationSampleStep*float32(j))
+			attenutationOrigin := mgl.Add(viewSample, attenuationSampleVec)
+			opticalDepth := sky.Earth.GetSampleDensity(attenutationOrigin)
+			attenuationSample += opticalDepth
+		}
+
+		u := mgl.Dot(view, sky.Dir)
+
+		//Rayleigh Scatter this watts coefficient and accumalte RGB Scattering
+		watts := attenuationSample * ATTENUATION * sky.Light.Lx().Flux
+		watts *= MiePhase(u) * sampleDensity
+		rgb.Add(sky.Light.Lx().RGB.Scale(attenuationSample * ATTENUATION * MiePhase(u) * sampleDensity))
+
+		//Compute the Rayleigh Contribution
+		rayleighPhase := RayleighPhase(u)
+		raylieghRGB := mgl.Vec{sky.Light.Lx().RGB[0] * sampleDensity * rayleighPhase * RLH_440,
+			sky.Light.Lx().RGB[1] * sampleDensity * rayleighPhase * RLH_550,
+			sky.Light.Lx().RGB[2] * sampleDensity * rayleighPhase * RLH_680}
+
+		//Accumulate Rayleigh
+		rgb.Add(raylieghRGB)
+
+	}
+
+	return rgb
+}
+
+func RayleighPhase(u float32) float32 {
 	return (3 / (16 * PI)) * (1 + (u * u))
 }
 

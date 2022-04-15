@@ -1,11 +1,18 @@
 package transform
 
-import "github.com/andewx/dieselfluid/math/mgl"
-import "math"
+import (
+	"math"
+
+	"github.com/andewx/dieselfluid/math/mgl"
+)
 
 //Holds Transform Matrix
 type Transform struct {
 	Matrix mgl.Mat
+}
+
+func Apply(a mgl.Mat, b mgl.Mat) mgl.Mat {
+	return a.MulM(b)
 }
 
 //Augments Transform Matrix with Translation
@@ -16,6 +23,11 @@ func (T *Transform) Translate(vec mgl.Vec) mgl.Mat {
 	TransMat[14] = vec[2]
 	T.Matrix = mgl.MulM(T.Matrix, TransMat)
 	return T.Matrix
+}
+
+//Applies tranform matrix to a vector
+func (T *Transform) Translate3VF(vec mgl.Vec) mgl.Vec {
+	return T.Matrix.CrossVec(vec)
 }
 
 //Rotate applies matrix rotation of the angle theta which should be in radians,
