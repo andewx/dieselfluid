@@ -1,17 +1,19 @@
 package render
 
-import "github.com/EngoEngine/ecs" //GoLang Entity Component System
-import "github.com/andewx/dieselfluid/render/scene"
-import "github.com/andewx/dieselfluid/render/glr"
-import "github.com/andewx/dieselfluid/render/defs"
-import "github.com/go-gl/gl/v4.1-core/gl"
-import "github.com/go-gl/glfw/v3.3/glfw"
+import (
+	"fmt"
+	"math" //GoLang Entity Component System
+	"runtime"
+	"time"
 
-import "github.com/andewx/dieselfluid/math/mgl"
-import "fmt"
-import "time"
-import "runtime"
-import "math"
+	"github.com/EngoEngine/ecs"
+	"github.com/andewx/dieselfluid/math/mgl"
+	"github.com/andewx/dieselfluid/render/defs"
+	"github.com/andewx/dieselfluid/render/glr"
+	"github.com/andewx/dieselfluid/render/scene"
+	"github.com/go-gl/gl/v4.1-core/gl"
+	"github.com/go-gl/glfw/v3.3/glfw"
+)
 
 const (
 	MIN_PARAM_SIZE  = 10
@@ -89,7 +91,7 @@ func (r *RenderSystem) Init(width int, height int, name string) error {
 		img, _ := r.Graph.GetImageIx(i)
 		if img.Uri != "" {
 			uri := img.Uri
-			path := "../resources/" + uri
+			path := "../data/" + uri
 			fmt.Printf("Loaded Image URI: %s\n", uri)
 			if texID, err := r.MyRenderer.LoadTexture(path, i); err != nil {
 				return err
@@ -103,7 +105,7 @@ func (r *RenderSystem) Init(width int, height int, name string) error {
 	}
 
 	//Default cubemap - we can make more procedural soon
-	path := "../resources/fluidmap.png"
+	path := "../data/sky_4.png"
 	if texID, err := r.MyRenderer.LoadEnvironment(path, 0); err != nil {
 		return err
 	} else {

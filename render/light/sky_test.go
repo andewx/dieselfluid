@@ -2,12 +2,20 @@ package light
 
 import (
 	"fmt"
+	"strconv"
 	"testing"
 )
 
 func TestPNGCreate(t *testing.T) {
-	mSky := NewSky()
-	mSky.UpdateDay(200.5)
-	mSky.CreateTexture()
-	fmt.Printf("YOU ROCK. Bring it home boys\n")
+	fmt.Printf("--Testing: Compute Atmosphere--- \n")
+	mSky := NewSky(45.0, 0.0)
+	mSky.SetDay(200.2)
+	base := "sky_"
+	for i := 0; i < 10; i++ {
+		filename := base + strconv.FormatInt(int64(i), 10) + ".png"
+		mSky.StepDay(1 + float32(i)/10)
+		mSky.CreateTexture(256, 256, filename)
+	}
+
+	fmt.Printf("--Compute Atmoshphere: PASS--- \n")
 }

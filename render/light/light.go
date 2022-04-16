@@ -1,6 +1,10 @@
 package light
 
-import "github.com/andewx/dieselfluid/math/mgl"
+import (
+	"fmt"
+
+	"github.com/andewx/dieselfluid/math/mgl"
+)
 
 //----------------------------------------------------------------------------//
 //  DslFluid lighting model uses SI lm/m^2 units for radiance calculations    //
@@ -28,6 +32,13 @@ type Light interface {
 	Lx() *Source
 	Position() mgl.Vec
 	Type() int
+	SetRGB(mgl.Vec)
+	GetRGB() mgl.Vec
+	GetFlux() float32
+	SetFlux(float32)
+	SetPos(mgl.Vec)
+	GetDir() mgl.Vec
+	SetDir(mgl.Vec)
 }
 
 //Source - Luminous Flux and Light Color in RGB Color Space. Systems dependent on
@@ -52,6 +63,7 @@ type Attenuated struct {
 //may model occlusions etc with a position
 type Directional struct {
 	Pos mgl.Vec
+	Dir mgl.Vec
 	Lum Source
 }
 
@@ -79,6 +91,33 @@ func (p Attenuated) Type() int {
 	return ATTENUATED_LIGHT
 }
 
+func (p Attenuated) SetRGB(a mgl.Vec) {
+	if a != nil && len(a) == 3 {
+		p.Lum.RGB = a
+	}
+}
+func (p Attenuated) GetRGB() mgl.Vec {
+	return p.Lum.RGB
+}
+func (p Attenuated) GetFlux() float32 {
+	return p.Lum.Flux
+}
+func (p Attenuated) SetFlux(a float32) {
+	p.Lum.Flux = a
+}
+func (p Attenuated) SetPos(a mgl.Vec) {
+	if a != nil && len(a) == 3 {
+		p.Pos = a
+	}
+}
+func (p Attenuated) GetDir() mgl.Vec {
+	return nil
+}
+
+func (p Attenuated) SetDir(a mgl.Vec) {
+
+}
+
 //-----------Directional Light----------------//
 
 func (p Directional) Lx() *Source {
@@ -93,6 +132,35 @@ func (p Directional) Type() int {
 	return DIRECTIONAL_LIGHT
 }
 
+func (p Directional) SetRGB(a mgl.Vec) {
+	if a != nil && len(a) == 3 {
+		p.Lum.RGB = a
+	}
+}
+func (p Directional) GetRGB() mgl.Vec {
+	return p.Lum.RGB
+}
+func (p Directional) GetFlux() float32 {
+	return p.Lum.Flux
+}
+func (p Directional) SetFlux(a float32) {
+	p.Lum.Flux = a
+}
+func (p Directional) SetPos(a mgl.Vec) {
+	if a != nil && len(a) == 3 {
+		p.Pos = a
+	}
+}
+func (p Directional) GetDir() mgl.Vec {
+	return p.Dir
+}
+
+func (p Directional) SetDir(a mgl.Vec) {
+	if a != nil && len(a) == 3 {
+		p.Dir = a
+	}
+}
+
 //-----------Area Light----------------//
 
 func (p Area) Lx() *Source {
@@ -105,4 +173,31 @@ func (p Area) Position() mgl.Vec {
 
 func (p Area) Type() int {
 	return AREA_LIGHT
+}
+
+func (p Area) SetRGB(a mgl.Vec) {
+	if a != nil && len(a) == 3 {
+		p.Lum.RGB = a
+	}
+}
+func (p Area) GetRGB() mgl.Vec {
+	return p.Lum.RGB
+}
+func (p Area) GetFlux() float32 {
+	return p.Lum.Flux
+}
+func (p Area) SetFlux(a float32) {
+	p.Lum.Flux = a
+}
+func (p Area) SetPos(a mgl.Vec) {
+	if a != nil && len(a) == 3 {
+		p.Pos = a
+	}
+}
+func (p Area) GetDir() mgl.Vec {
+	return nil
+}
+
+func (p Area) SetDir(a mgl.Vec) {
+	fmt.Printf("Area light has no direction")
 }

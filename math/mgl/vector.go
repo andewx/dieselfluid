@@ -191,6 +191,10 @@ func (b Vec) Sub(a Vec) Vec {
 	return Add(b, Scale(a, -1.0))
 }
 
+func (b Vec) Mul(a Vec) Vec {
+	return Vec{a[0] * b[0], a[1] * b[1], a[2] * b[2]}
+}
+
 //Scl scales vector kX this function does not mutate the current vector
 func Scale(a Vec, k float32) Vec {
 	c := make([]float32, len(a))
@@ -221,7 +225,7 @@ func (a Vec) Scale(k float32) Vec {
 
 //---TRIPLE CHECK THIS LOL
 //Dot computes the dot product as in a.Dot(b) where the resulting value should return
-//a scalar value representative of the Cos() theta angle between two non-parallel vectors
+//a scalar value representative of the ||a|||b||Cos() theta angle between two non-parallel vectors
 func Dot(a Vec, b Vec) float32 {
 	return a[0]*b[0] + a[1]*b[1] + a[2]*b[2]
 }
@@ -277,14 +281,12 @@ func Norm(a Vec) Vec {
 		for i := 0; i < len(a); i++ {
 			v[i] = a[i] / l
 		}
-	} else {
-		LogVecError(a, "NORM ZERO VEC")
 	}
 	return v
 }
 
 //Returns normalized vector A.i / Mag() function is non mutating and delegates
-//result to a new vector
+//result to a new vector - fails quietly with 0 vector
 func (a Vec) Norm() Vec {
 	v := make([]float32, len(a))
 	l := Mag(a)
@@ -292,8 +294,6 @@ func (a Vec) Norm() Vec {
 		for i := 0; i < len(a); i++ {
 			v[i] = a[i] / l
 		}
-	} else {
-		LogVecError(a, "NORM ZERO VEC")
 	}
 	return v
 }
@@ -450,6 +450,60 @@ func RaySphereIntersection(r0 Vec, d0 Vec, c Vec, r float32) (Vec, bool) {
 		inter := Add(r0, Scale(d0, di1))
 		return inter, true
 	}
+}
+
+//Clamps Vector between min and max values for each entry
+//@mutate_selector / #utility / #mgl / #vector / #math
+func (v Vec) Clamp(min float32, max float32) {
+	v[0] = Clamp1f(v[0], min, max)
+	v[1] = Clamp1f(v[1], min, max)
+	v[2] = Clamp1f(v[2], min, max)
+}
+
+//-------------------------------RAY SPHERE --------------------//
+
+type Intersection struct {
+	T float32
+}
+
+func Priority(t []*Intersection) float32 {
+	if len(t) == 0 {
+		return 0.0
+	}
+	min := t[0].T
+	for i := 1; i < len(t); i++ {
+		next := t[i].T
+		abs_next := next * next
+		abs_min := min * min
+		if abs_next < abs_min {
+			min = next
+		}
+	}
+	return min
+}
+
+func RaySphereIntersect(r Vec, o Vec, s Polar) []*Intersection {
+
+	// The vector from the s origin to the r origin.
+	sphereToRayVec := Sub(o, s.Origin)
+
+	// Compute the discriminant to tell whether the r intersects with the s at all.
+	a := Dot(r, r)
+	b := 2 * Dot(r, sphereToRayVec)
+	c := Dot(sphereToRayVec, sphereToRayVec) - s.Radius()*s.Radius()
+	discriminant := math.Pow(float64(b), 2) - float64(4*a*c)
+
+	// If the discriminant is negative, then the r misses the s and no intersections occur.
+	if discriminant < 0 {
+		return []*Intersection{}
+	}
+
+	// Compute the t values.
+	t1 := ((-1 * b) - float32(math.Sqrt(discriminant))) / (2 * a)
+	t2 := ((-1 * b) + float32(math.Sqrt(discriminant))) / (2 * a)
+
+	// Return the intersection t values and object in increasing order
+	return []*Intersection{{T: t1}, {T: t2}}
 }
 
 func SinDot(a Vec, b Vec) float32 {
