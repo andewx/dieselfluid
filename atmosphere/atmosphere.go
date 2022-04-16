@@ -1,4 +1,4 @@
-package light
+package atmosphere
 
 import (
 	"fmt"
@@ -10,11 +10,12 @@ import (
 	"os"
 
 	"github.com/andewx/dieselfluid/math/mgl"
+	"github.com/andewx/dieselfluid/render/light"
 	"github.com/andewx/dieselfluid/sampler"
 )
 
 /*
-Sky environment lighting model.
+Atmosphere environment lighting model.
 
 This model generates a sun position based on lat/long and solar times and then
 we simulate atmospheric scattering processes via Rayleigh/Mie Scattering.
@@ -24,25 +25,18 @@ Compute Intensive Consider putting this into a job interface for progress and ha
 const (
 	PI                 = 3.141529
 	AXIAL_TILT         = 23.5      //Degrees
-	CLEAR_LUX          = 105000.0  //Sun Lumens
-	MDSL               = 1000.0    //Molecular density at sea level
-	IOR_AIR            = 1.000293  //IOR
-	RLH_440            = 0.0000331 //RAYLEIGTH SCATTER COEFFICIENT SEA LEVEL 440NM (BLUE)
-	RLH_550            = 0.0000135 //RAYLEIGTH SCATTER COEFFICIENT SEA LEVEL 550NM (GREEN)
-	RLH_680            = 0.0000058 //RAYLEIGTH SCATTER COEFFICIENT SEA LEVEL 680NM (RED)
-	MIE                = 0.00210   //MIE SCATTER COEFFICIENT
 	RAYLEIGH_SAMPLES   = 16        //RAYLEIGH sampling
 	LIGHT_PATH_SAMPLES = 30        //MIE SAMPLING
-	ATTENUATION        = 0.05      //Attenuation of Light in WATTS per Density
-	AU                 = 150000000 //150 million KM
-	HM                 = 1200      //m
+	AU                 = 150000000 //SUN
+	HM                 = 1200      //AEROSOL MIE SCATTER HEIGHT
+	HR                 = 8500      //RAYLEIGH SCATTER HEIGHT
 
 )
 
-//Sky Environment
-type Sky struct {
-	Light Light
-	Spd   Spectrum
+//Atmosphere Environment
+type Atmosphere struct {
+	Light light.Light
+	Spd   light.Spectrum
 	Sun   mgl.Polar //Orbtial Solar System Earth 2 Sun Polar Coordinate
 	Earth *EarthCoords
 	Day   float32
@@ -50,18 +44,18 @@ type Sky struct {
 }
 
 //Allocates Default Data Structure and Solar Coords Structs
-func NewSky(lat float32, long float32) *Sky {
-	sky := Sky{}
+func NewAtmosphere(lat float32, long float32) *Atmosphere {
+	sky := Atmosphere{}
 	sky.Earth = NewEarth(45.0, 0)
 	sky.Sun = mgl.NewPolar(-AU)
-	sky.Light = Directional{mgl.Vec{-1, 0, 0}, mgl.Vec{-1, 0, 0}, Source{mgl.Vec{1, 1, 1}, 20.5, WATTS}}
-	sky.Spd = InitSunlight(20)
+	sky.Light = light.Directional{mgl.Vec{-1, 0, 0}, mgl.Vec{-1, 0, 0}, light.Source{mgl.Vec{1, 1, 1}, 20.5, light.WATTS}}
+	sky.Spd = light.InitSunlight(20)
 	sky.SetDay(1.0)
 	return &sky
 }
 
 //Updates Frame of Reference Solar Coordinates with regards to Decimal Day Local Time
-func (sky *Sky) StepDay(day float32) error {
+func (sky *Atmosphere) StepDay(day float32) error {
 	var err error
 	axialMag := float32(2 * AXIAL_TILT)
 	sky.Day += day
@@ -76,7 +70,7 @@ func (sky *Sky) StepDay(day float32) error {
 }
 
 //Updates Frame of Reference Solar Coordinates with regards to Decimal Day Local Time
-func (sky *Sky) SetDay(day float32) error {
+func (sky *Atmosphere) SetDay(day float32) error {
 	var err error
 	axialMag := float32(2 * AXIAL_TILT)
 	sky.Day = day
@@ -90,7 +84,7 @@ func (sky *Sky) SetDay(day float32) error {
 	return err
 }
 
-func (sky *Sky) CreateTexture(width int, height int, filename string) {
+func (sky *Atmosphere) CreateTexture(width int, height int, filename string) {
 	wd, _ := os.Getwd()
 	fmt.Printf("Working Dir: %s\n", wd)
 	rgbs := sky.ComputeAtmosphere(width, height)
@@ -120,7 +114,7 @@ func (sky *Sky) CreateTexture(width int, height int, filename string) {
 
 //Maps texel coordinates to spherical coordinate sampler values (-1,1) and stores
 //resultant map in single texture.
-func (sky *Sky) ComputeAtmosphere(uSampleDomain int, vSampleDomain int) []mgl.Vec {
+func (sky *Atmosphere) ComputeAtmosphere(uSampleDomain int, vSampleDomain int) []mgl.Vec {
 	sizeT := uSampleDomain * vSampleDomain
 	tex := make([]mgl.Vec, sizeT+1)
 	index := 0
@@ -144,7 +138,7 @@ func (sky *Sky) ComputeAtmosphere(uSampleDomain int, vSampleDomain int) []mgl.Ve
 
 //Given a sampling vector and a viewing direction calculate RGB stimulus return
 //Based on the Attenuation/Mie Phase Scatter/RayleighScatter Terms
-func (sky *Sky) VolumetricScatterRay(sample mgl.Vec, view mgl.Vec) mgl.Vec {
+func (sky *Atmosphere) VolumetricScatterRay(sample mgl.Vec, view mgl.Vec) mgl.Vec {
 
 	//Declare volumetric scatter ray vars
 	intersects := mgl.RaySphereIntersect(sample, sky.Earth.GetPosition(), sky.Earth.GreaterSphere)
@@ -236,38 +230,4 @@ func (sky *Sky) VolumetricScatterRay(sample mgl.Vec, view mgl.Vec) mgl.Vec {
 	rgb = rayliegh.Add(mie).Scale(sky.Light.Lx().Flux).Mul(sky.Light.Lx().RGB)
 	rgb.Clamp(0, 1) //Dev Note: Add in a mechanism to produce HDR with excess luminance
 	return rgb
-}
-
-func RayleighPhase(u float32) float32 {
-	return (3 / (16 * PI)) * (1 + (u * u))
-}
-
-func MiePhase(u float32) float32 {
-	g := float32(0.76)
-	num := (1 - (g * g)) * (1 + (u * u))
-	denom := float32(math.Pow(float64((2+g*g)*(1+g*g-2*g*u)), 1.5))
-	return (3 / (8 * PI)) * (num / denom)
-}
-
-func RayleighCoefficient(wv float32, u float32, h float32) float32 {
-	n := float32(1.00029)
-	N := 2.50 * float32(math.Pow(10, 25))
-	if h <= 0 {
-		h = 0.001
-	}
-	wv4 := wv * wv * wv * wv
-	res := 1 / wv4 * 1 / N
-	exp := float32(math.Exp(float64(-h / HR)))
-	coeff := ((PI * PI) * (n*n - 1) * (n*n - 1) / 2) * (exp * res) * (1 + u*u)
-	return coeff
-}
-
-//Returns rayleigh scatter coefficients for depth and wavelength of light
-//This is a utility that must be integrated across an SPD
-func (sun *EarthCoords) RayleighCoeff(h float64, km float64) float64 {
-	if h <= 0 {
-		h = 0.001
-	}
-	hr := 12.0 //Scale Height KM
-	return (8 * PI * PI * PI * (IOR_AIR - 1) * (IOR_AIR - 1) * math.Exp(-h/hr)) / (3 * MDSL * km * km * km * km)
 }

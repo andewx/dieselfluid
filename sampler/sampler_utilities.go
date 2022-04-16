@@ -33,7 +33,7 @@ func ImportSampler(resource string) (*SamplerJSON, error) {
 	myImporter := SamplerJSON{}
 	content, err := ioutil.ReadFile("../" + resource)
 	if err != nil {
-		fmt.Printf("Unable to load GLTF File\n")
+		fmt.Printf("Unable to load sampler\n")
 		log.Fatal(err)
 	}
 	jsonErr := myImporter.UnmarshalJSON(content)

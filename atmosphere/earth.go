@@ -1,15 +1,11 @@
-package light
+package atmosphere
 
 import (
-	"math"
-
 	"github.com/andewx/dieselfluid/math/mgl"
 )
 
 const (
 	EARTH_RAD = 6370 * 1000
-	HR        = 8500
-	DENSITY0  = 1.225 //KG/M^3
 )
 
 //Earth Coordinates and Greater Earth will not be rotated for simplicity all
@@ -59,10 +55,6 @@ func (earth *EarthCoords) GetSample(uv [2]float32) mgl.Vec {
 
 func (earth *EarthCoords) GetSampleDepth(sample mgl.Vec) float32 {
 	return sample[2]
-}
-
-func (earth *EarthCoords) GetSampleDensity(sample mgl.Vec) float32 {
-	return DENSITY0 * float32(math.Exp(float64(-(earth.GetSampleDepth(sample) / HR))))
 }
 
 //Gets when rotated earth tangent vector and tangent 2 atomospheric perion vectors are parallel

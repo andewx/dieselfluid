@@ -1,4 +1,4 @@
-package light
+package atmosphere
 
 import (
 	"fmt"
@@ -8,7 +8,7 @@ import (
 
 func TestPNGCreate(t *testing.T) {
 	fmt.Printf("--Testing: Compute Atmosphere--- \n")
-	mSky := NewSky(45.0, 0.0)
+	mSky := NewAtmosphere(45.0, 0.0)
 	mSky.SetDay(200.2)
 	base := "sky_"
 	for i := 0; i < 10; i++ {
