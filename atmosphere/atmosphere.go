@@ -9,7 +9,9 @@ import (
 	"math"
 	"os"
 
-	"github.com/andewx/dieselfluid/math/mgl"
+	"github.com/andewx/dieselfluid/math/common"
+	"github.com/andewx/dieselfluid/math/polar"
+	"github.com/andewx/dieselfluid/math/vector"
 	"github.com/andewx/dieselfluid/render/light"
 	"github.com/andewx/dieselfluid/sampler"
 )
@@ -37,18 +39,18 @@ const (
 type Atmosphere struct {
 	Light light.Light
 	Spd   light.Spectrum
-	Sun   mgl.Polar //Orbtial Solar System Earth 2 Sun Polar Coordinate
+	Sun   polar.Polar //Orbtial Solar System Earth 2 Sun Polar Coordinate
 	Earth *EarthCoords
 	Day   float32
-	Dir   mgl.Vec //Euclidian Sun Direction
+	Dir   vector.Vec //Euclidian Sun Direction
 }
 
 //Allocates Default Data Structure and Solar Coords Structs
 func NewAtmosphere(lat float32, long float32) *Atmosphere {
 	sky := Atmosphere{}
 	sky.Earth = NewEarth(45.0, 0)
-	sky.Sun = mgl.NewPolar(-AU)
-	sky.Light = light.Directional{mgl.Vec{-1, 0, 0}, mgl.Vec{-1, 0, 0}, light.Source{mgl.Vec{1, 1, 1}, 20.5, light.WATTS}}
+	sky.Sun = vector.NewPolar(-AU)
+	sky.Light = light.Directional{vector.Vec{-1, 0, 0}, vector.Vec{-1, 0, 0}, light.Source{vector.Vec{1, 1, 1}, 20.5, light.WATTS}}
 	sky.Spd = light.InitSunlight(20)
 	sky.SetDay(1.0)
 	return &sky
@@ -61,9 +63,9 @@ func (sky *Atmosphere) StepDay(day float32) error {
 	sky.Day += day
 	u := (sky.Day / 12.0) / (365.0 / 12.0) //Normalized cos units
 	axialTilt := AXIAL_TILT - float32(math.Cos(float64(u)))*axialMag
-	sky.Sun.AddAzimuth(-sky.Day/365.0*mgl.DEG2RAD + (-sky.Day*24)*mgl.DEG2RAD + sky.Earth.Longitude) //Rotate sun directional azimuth
-	sky.Sun.AddPolar(-axialTilt*mgl.DEG2RAD + sky.Earth.Latitude)
-	sky.Dir, err = mgl.Sphere2Vec(sky.Sun)
+	sky.Sun.AddAzimuth(-sky.Day/365.0*common.DEG2RAD + (-sky.Day*24)*common.DEG2RAD + sky.Earth.Longitude) //Rotate sun directional azimuth
+	sky.Sun.AddPolar(-axialTilt*common.DEG2RAD + sky.Earth.Latitude)
+	sky.Dir, err = vector.Sphere2Vec(sky.Sun)
 	sky.Dir = sky.Dir.Norm()
 	sky.Light.SetDir(sky.Dir)
 	return err
@@ -76,9 +78,9 @@ func (sky *Atmosphere) SetDay(day float32) error {
 	sky.Day = day
 	u := (sky.Day / 12.0) / (365.0 / 12.0) //Normalized cos units
 	axialTilt := AXIAL_TILT - float32(math.Cos(float64(u)))*axialMag
-	sky.Sun.AddAzimuth(-day/365.0*mgl.DEG2RAD + (-day*24)*mgl.DEG2RAD + sky.Earth.Longitude) //Rotate sun directional azimuth
-	sky.Sun.AddPolar(-axialTilt*mgl.DEG2RAD + sky.Earth.Latitude)
-	sky.Dir, err = mgl.Sphere2Vec(sky.Sun)
+	sky.Sun.AddAzimuth(-day/365.0*common.DEG2RAD + (-day*24)*common.DEG2RAD + sky.Earth.Longitude) //Rotate sun directional azimuth
+	sky.Sun.AddPolar(-axialTilt*common.DEG2RAD + sky.Earth.Latitude)
+	sky.Dir, err = vector.Sphere2Vec(sky.Sun)
 	sky.Dir = sky.Dir.Norm()
 	sky.Light.SetDir(sky.Dir)
 	return err
@@ -114,9 +116,9 @@ func (sky *Atmosphere) CreateTexture(width int, height int, filename string) {
 
 //Maps texel coordinates to spherical coordinate sampler values (-1,1) and stores
 //resultant map in single texture.
-func (sky *Atmosphere) ComputeAtmosphere(uSampleDomain int, vSampleDomain int) []mgl.Vec {
+func (sky *Atmosphere) ComputeAtmosphere(uSampleDomain int, vSampleDomain int) []vector.Vec {
 	sizeT := uSampleDomain * vSampleDomain
-	tex := make([]mgl.Vec, sizeT+1)
+	tex := make([]vector.Vec, sizeT+1)
 	index := 0
 
 	for x := 0; x < uSampleDomain; x++ {
@@ -126,9 +128,9 @@ func (sky *Atmosphere) ComputeAtmosphere(uSampleDomain int, vSampleDomain int) [
 			z2 := u*u + v*v
 			phi := math.Atan2(v, u)
 			theta := math.Acos(1 - z2)
-			sample := mgl.Vec{float32(math.Sin(theta) * math.Cos(phi)), float32(math.Cos(theta)), float32(math.Sin(theta) * math.Sin(phi))}
+			sample := vector.Vec{float32(math.Sin(theta) * math.Cos(phi)), float32(math.Cos(theta)), float32(math.Sin(theta) * math.Sin(phi))}
 			if index < len(tex) {
-				tex[index] = sky.VolumetricScatterRay(sample, mgl.Vec{0, 1, 0})
+				tex[index] = sky.VolumetricScatterRay(sample, vector.Vec{0, 1, 0})
 			}
 			index++
 		}
@@ -138,17 +140,17 @@ func (sky *Atmosphere) ComputeAtmosphere(uSampleDomain int, vSampleDomain int) [
 
 //Given a sampling vector and a viewing direction calculate RGB stimulus return
 //Based on the Attenuation/Mie Phase Scatter/RayleighScatter Terms
-func (sky *Atmosphere) VolumetricScatterRay(sample mgl.Vec, view mgl.Vec) mgl.Vec {
+func (sky *Atmosphere) VolumetricScatterRay(sample vector.Vec, view vector.Vec) vector.Vec {
 
 	//Declare volumetric scatter ray vars
-	intersects := mgl.RaySphereIntersect(sample, sky.Earth.GetPosition(), sky.Earth.GreaterSphere)
-	rgb := mgl.Vec{0, 0, 0} //Pixel Output
+	intersects := vector.RaySphereIntersect(sample, sky.Earth.GetPosition(), sky.Earth.GreaterSphere)
+	rgb := vector.Vec{0, 0, 0} //Pixel Output
 
-	betaR := mgl.Vec{0.0000088, .0000135, 0.0000331}
-	betaM := mgl.Vec{0.000021, 0.000021, 0.000021}
-	sumR := mgl.Vec{0, 0, 0}
-	sumM := mgl.Vec{0, 0, 0}
-	u := mgl.Dot(sample, sky.Dir) / (sample.Mag() * sky.Dir.Mag())
+	betaR := vector.Vec{0.0000088, .0000135, 0.0000331}
+	betaM := vector.Vec{0.000021, 0.000021, 0.000021}
+	sumR := vector.Vec{0, 0, 0}
+	sumM := vector.Vec{0, 0, 0}
+	u := vector.Dot(sample, sky.Dir) / (sample.Mag() * sky.Dir.Mag())
 	mu := float64(u)
 	phaseR := float32(3.0 / (16.0 * PI) * (1.0 + mu*mu))
 	g := 0.76
@@ -163,9 +165,9 @@ func (sky *Atmosphere) VolumetricScatterRay(sample mgl.Vec, view mgl.Vec) mgl.Ve
 		//Generate Sample Rays along view path - assume sample ray is normalized
 		w := float32(5.0)
 		sampleScale := sampler.Ease(float32(i)*sampleStep, w)
-		viewRay := mgl.Scale(sample, mgl.Priority(intersects))
+		viewRay := vector.Scale(sample, vector.Priority(intersects))
 		viewRayMag := viewRay.Mag()
-		viewSample := mgl.Scale(viewRay, sampleScale)
+		viewSample := vector.Scale(viewRay, sampleScale)
 		depth := sky.Earth.GetSampleDepth(viewSample)
 
 		//Compute the view ray ds parameters
@@ -180,16 +182,16 @@ func (sky *Atmosphere) VolumetricScatterRay(sample mgl.Vec, view mgl.Vec) mgl.Ve
 		opticalDepthM += hm
 
 		//Constructs Light Path Rays from Viewer Sample Positions and Calculates
-		viewSampleOrigin := mgl.Add(viewSample, sky.Earth.GetPosition())
-		lightIntersects := mgl.RaySphereIntersect(mgl.Scale(sky.Dir, -1.0), viewSampleOrigin, sky.Earth.GreaterSphere)
+		viewSampleOrigin := vector.Add(viewSample, sky.Earth.GetPosition())
+		lightIntersects := vector.RaySphereIntersect(vector.Scale(sky.Dir, -1.0), viewSampleOrigin, sky.Earth.GreaterSphere)
 
 		if len(lightIntersects) == 0 {
 			fmt.Printf("No Ray Sphere Intersection")
-			return mgl.Vec{0, 0, 0}
+			return vector.Vec{0, 0, 0}
 		}
 
 		//Light Path Transmittance + Attenutation
-		lightRay := mgl.Scale(mgl.Scale(sky.Dir, -1.0), mgl.Priority(lightIntersects))
+		lightRay := vector.Scale(vector.Scale(sky.Dir, -1.0), vector.Priority(lightIntersects))
 		lightRayMag := lightRay.Mag()
 		lightPathSampleStep := float32(1.0 / LIGHT_PATH_SAMPLES)
 
@@ -203,11 +205,11 @@ func (sky *Atmosphere) VolumetricScatterRay(sample mgl.Vec, view mgl.Vec) mgl.Ve
 		//Compute light path to sample position
 		for j := 1; j <= LIGHT_PATH_SAMPLES; j++ {
 			pathScale := sampler.Ease(lightPathSampleStep*float32(j), w)
-			lightPath := mgl.Scale(lightRay, pathScale)
+			lightPath := vector.Scale(lightRay, pathScale)
 			mag1 = pathScale * lightRayMag
 			ds = mag1 - mag0
 			mag0 = mag1
-			lightPathSamplePosition := mgl.Add(viewSample, lightPath)
+			lightPathSamplePosition := vector.Add(viewSample, lightPath)
 			lightPathDepth := sky.Earth.GetSampleDepth(lightPathSamplePosition)
 
 			if lightPathDepth < 0 {
@@ -221,7 +223,7 @@ func (sky *Atmosphere) VolumetricScatterRay(sample mgl.Vec, view mgl.Vec) mgl.Ve
 
 		//Compute Contributions and Accumulate
 		tau := betaR.Scale(opticalDepthR + opticalDepthLightR).Add(betaM.Scale(1.1).Scale(opticalDepthM + opticalDepthLightM))
-		attenuation := mgl.Vec{float32(math.Exp(float64(-tau[0]))), float32(math.Exp(float64(-tau[1]))), float32(math.Exp(float64(-tau[2])))}
+		attenuation := vector.Vec{float32(math.Exp(float64(-tau[0]))), float32(math.Exp(float64(-tau[1]))), float32(math.Exp(float64(-tau[2])))}
 		sumR = sumR.Add(attenuation.Scale(hr))
 		sumM = sumM.Add(attenuation.Scale(hm))
 	}

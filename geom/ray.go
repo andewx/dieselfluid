@@ -1,13 +1,13 @@
 package geom
 
 import (
-	"github.com/andewx/dieselfluid/math/mgl"
+	"github.com/andewx/dieselfluid/math/vector"
 	"github.com/andewx/dieselfluid/render/transform"
 )
 
 type Ray struct {
-	Ray       *mgl.Vec
-	Origin    *mgl.Vec
+	Ray       *vector.Vec
+	Origin    *vector.Vec
 	Transform *transform.Transform
 }
 

@@ -1,6 +1,6 @@
 package grid
 
-import V "github.com/andewx/dieselfluid/math/mgl"
+import V "github.com/andewx/dieselfluid/math/vector"
 
 //Defines [I, J, K] element structured unit grid position
 

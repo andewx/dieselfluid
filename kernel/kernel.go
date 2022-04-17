@@ -1,6 +1,6 @@
 package kernel
 
-import V "github.com/andewx/dieselfluid/math/math32"
+import V "github.com/andewx/dieselfluid/math/vector"
 
 type Kernel interface {
 	F(x float32) float32

@@ -1,13 +1,13 @@
 package common
 
-import "github.com/andewx/dieselfluid/math/mgl"
+import "github.com/andewx/dieselfluid/math/vector"
 
 //Generalized callback function interface with []float32 return parameter
 type ComputeFunction struct {
-	Evaluate func(mgl.Vec) mgl.Vec
+	Evaluate func(vector.Vec) vector.Vec
 }
 
 //Integral Computation Function Map with object parameter
 type Evaluatable interface {
-	Evaluate(mgl.Vec) mgl.Vec
+	Evaluate(vector.Vec) vector.Vec
 }

@@ -1,6 +1,6 @@
 package kernel
 
-import V "github.com/andewx/dieselfluid/math/mgl"
+import V "github.com/andewx/dieselfluid/math/vector"
 
 const PI = 3.141592653589
 
@@ -85,5 +85,5 @@ func (K Cubic) Adjust(densityRatio float32) float32 {
 
 //Grad finds the kernel gradient
 func (K Cubic) Grad(x float32, dir V.Vec) V.Vec {
-	return V.Scl(dir, -K.O1D(x))
+	return V.Scale(dir, -K.O1D(x))
 }

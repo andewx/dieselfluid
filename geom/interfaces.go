@@ -2,7 +2,7 @@ package geom
 
 //Global Interfaces List
 import (
-	Vec "github.com/andewx/dieselfluid/math/mgl"
+	Vec "github.com/andewx/dieselfluid/math/vector"
 )
 
 //Particle Collider Interface Defines Particle Velocity Collisions with underlying object

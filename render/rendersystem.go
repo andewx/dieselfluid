@@ -7,7 +7,8 @@ import (
 	"time"
 
 	"github.com/EngoEngine/ecs"
-	"github.com/andewx/dieselfluid/math/mgl"
+	"github.com/andewx/dieselfluid/math/matrix"
+	"github.com/andewx/dieselfluid/math/vector"
 	"github.com/andewx/dieselfluid/render/defs"
 	"github.com/andewx/dieselfluid/render/glr"
 	"github.com/andewx/dieselfluid/render/scene"
@@ -215,8 +216,8 @@ func (r *RenderSystem) RegisterMesh(meshIndex int, primitiveIndex int, scn *scen
 
 	//Generate Mesh Location
 	meshComp.TransformComponent = new(defs.TransformComponent)
-	meshComp.TransformComponent.Model = mgl.Mat4(1.0)
-	meshComp.TransformComponent.Position = mgl.Vec3()
+	meshComp.TransformComponent.Model = matrix.Mat4(1.0)
+	meshComp.TransformComponent.Position = vector.Vec3()
 
 	if primitive.Indices == 0 {
 		return nil, fmt.Errorf("RegisterMesh() - GLTF Format Error: No primitive indices reference. Indices index is 0. GLTF file may not use a indices accessor reference of zero\n")

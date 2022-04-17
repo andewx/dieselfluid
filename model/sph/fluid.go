@@ -4,11 +4,12 @@ package sph
 //for reuse with application specific SPH methods
 
 import (
+	"math"
+
 	"github.com/andewx/dieselfluid/geom"
 	"github.com/andewx/dieselfluid/geom/grid"
-	V "github.com/andewx/dieselfluid/math/mgl"
+	V "github.com/andewx/dieselfluid/math/vector"
 	"github.com/andewx/dieselfluid/model/field"
-	"math"
 )
 
 //SPHSystem represents the core SPH iteration

@@ -4,7 +4,7 @@ package field
 
 import (
 	"github.com/andewx/dieselfluid/kernel"
-	V "github.com/andewx/dieselfluid/math/mgl" //Diesel Vector Library - Simple Vec
+	V "github.com/andewx/dieselfluid/math/vector"
 	"github.com/andewx/dieselfluid/model"
 	"github.com/andewx/dieselfluid/sampler"
 )

@@ -5,13 +5,13 @@ import (
 	"testing"
 
 	"github.com/andewx/dieselfluid/compute/common"
-	"github.com/andewx/dieselfluid/math/mgl"
+	"github.com/andewx/dieselfluid/math/vector"
 )
 
 func TestQueue(t *testing.T) {
 	job := common.ComputeFunction{}
 	queue := New(10)
-	job.Evaluate = func(a mgl.Vec) mgl.Vec {
+	job.Evaluate = func(a vector.Vec) vector.Vec {
 		fmt.Printf("Eval %s\n", a.ToString())
 		return a.Norm()
 	}
@@ -22,7 +22,7 @@ func TestQueue(t *testing.T) {
 		t.Errorf("Queue has jobs -- returns Empty:true\n")
 	}
 
-	avec := mgl.Vec{1.0, 2.0, 3.0}
+	avec := vector.Vec{1.0, 2.0, 3.0}
 	f := queue.Pop()
 	b := f.Evaluate(avec)
 	fmt.Printf("%s\n", b.ToString())

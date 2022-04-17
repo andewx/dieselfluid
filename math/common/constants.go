@@ -1,0 +1,8 @@
+package common
+
+const (
+	DEG2RAD = 0.01745329252
+	RAD2DEG = 57.2958
+	PI      = 3.14159265359
+	EPSILON = 0.0000000019
+)

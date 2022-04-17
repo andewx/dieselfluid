@@ -1,7 +1,7 @@
 package integral
 
 import (
-	"github.com/andewx/dieselfluid/math/mgl"
+	"github.com/andewx/dieselfluid/math/vector"
 	"github.com/andewx/dieselfluid/sampler"
 )
 
@@ -10,10 +10,10 @@ import (
 //To this queue. The integrator
 type Integral interface {
 	Integrator() *Integrator
-	Evaluate(mgl.Vec) mgl.Vec
+	Evaluate(vector.Vec) vector.Vec
 }
 
 type Integrator interface {
 	Sampler() *sampler.Sampler
-	Bounds() mgl.Vec
+	Bounds() vector.Vec
 }

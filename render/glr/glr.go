@@ -10,12 +10,7 @@ Holds the GLTF Scene Description and Renders those objects
 */
 
 import (
-	"github.com/andewx/dieselfluid/math/mgl"
-	"github.com/andewx/dieselfluid/render/camera"
-	"github.com/andewx/dieselfluid/render/defs"
 	"fmt"
-	"github.com/go-gl/gl/v4.1-core/gl"
-	"github.com/go-gl/glfw/v3.3/glfw"
 	"image"
 	"image/draw"
 	_ "image/png"
@@ -23,6 +18,13 @@ import (
 	"os"
 	"strings"
 	"time"
+
+	"github.com/andewx/dieselfluid/math/matrix"
+	"github.com/andewx/dieselfluid/math/vector"
+	"github.com/andewx/dieselfluid/render/camera"
+	"github.com/andewx/dieselfluid/render/defs"
+	"github.com/go-gl/gl/v4.1-core/gl"
+	"github.com/go-gl/glfw/v3.3/glfw"
 )
 
 //Implements  RenderAPIContext & Renderer Interface in float32 Env
@@ -83,7 +85,7 @@ type MouseState struct {
 type KeyState struct {
 	Pressed int
 	Time    time.Time
-	Vec     mgl.Vec
+	Vec     vector.Vec
 	Scale   float32
 	Select  int
 }
@@ -136,7 +138,7 @@ func InitOpenGL() error {
 
 func Renderer() *GLRenderer {
 
-	mCamera := camera.NewCamera(mgl.Vec{0, 0, 10})
+	mCamera := camera.NewCamera(vector.Vec{0, 0, 10})
 	mRenderer := new(GLRenderer)
 	mRenderer.Camera = &mCamera
 	return mRenderer
@@ -158,7 +160,7 @@ func (renderer *GLRenderer) Setup(width int, height int, title string) error {
 
 	aspect := float32(width) / float32(height)
 	renderer.MVPMat = make([]float32, 16)
-	renderer.MVPMat = mgl.ProjectionMatF(45.0, aspect, 1.0, 1000)
+	renderer.MVPMat = matrix.ProjectionMatF(45.0, aspect, 1.0, 1000)
 	Input.Time = time.Now()
 
 	return nil
@@ -415,7 +417,7 @@ func (r *GLRenderer) Update(dt float64) error {
 			r.MoveCamera(dir, scale)
 		}
 		if Input.Mouse.Hold == true {
-			r.Camera.RotateFPS(mgl.Vec{float32(-Input.Mouse.Dy), float32(-Input.Mouse.Dx), 0})
+			r.Camera.RotateFPS(vector.Vec{float32(-Input.Mouse.Dy), float32(-Input.Mouse.Dx), 0})
 		}
 		Input.Time = time.Now()
 	}
@@ -437,8 +439,8 @@ func (renderer *GLRenderer) Status() error {
 
 }
 
-func (r *GLRenderer) MoveCamera(dir mgl.Vec, mag float32) {
-	move := mgl.Scale(dir, mag)
+func (r *GLRenderer) MoveCamera(dir vector.Vec, mag float32) {
+	move := vector.Scale(dir, mag)
 	r.Camera.Transform.Translate(move)
 }
 
