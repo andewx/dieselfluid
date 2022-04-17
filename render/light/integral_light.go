@@ -1,13 +1,12 @@
 package light
 
-import "github.com/andewx/dieselfluid/math/mgl"
 import "math"
 
 //Approximates area light for contributions.
 type LightIntegral interface {
 	Lights() []Light
-	Luminance(point mgl.Vec) float32
-	Position() mgl.Vec
+	Luminance(point vector.Vec) float32
+	Position() vector.Vec
 }
 
 //Rect lights sample the light boundaries luminance is distributed across the
@@ -17,37 +16,37 @@ type LightIntegral interface {
 type RectLight struct {
 	SampleLx   *Area
 	Lum        float32 //Total output
-	Pos        mgl.Vec
+	Pos        vector.Vec
 	Width      float32
 	Height     float32
 	Num_w      float32
 	Num_h      float32
 	EdgeCutoff float32
-	Plane      []mgl.Vec //Triangle plane represents object
+	Plane      []vector.Vec //Triangle plane represents object
 }
 
 //Cylindrical lights are simply a line of oriented attenuated lights
 type CylinderLight struct {
 	SampleLx  *Area
 	Luminance float32 //Total output
-	Pos       mgl.Vec
-	Axis      mgl.Vec
+	Pos       vector.Vec
+	Axis      vector.Vec
 	Length    float32
 }
 
 type DiscLight struct {
 	SampleLx  *Area
 	Luminance float32
-	Pos       mgl.Vec
-	Dir       mgl.Vec
-	Radius    mgl.Vec
+	Pos       vector.Vec
+	Dir       vector.Vec
+	Radius    vector.Vec
 }
 
 //-------------------RectLight----------------------------------//
 
-func NewRectLight(color mgl.Vec, lum float32, pos mgl.Vec, width float32,
+func NewRectLight(color vector.Vec, lum float32, pos vector.Vec, width float32,
 	height float32, num_w int, num_h int) *RectLight {
-	plane := make([]mgl.Vec, 3)
+	plane := make([]vector.Vec, 3)
 	x1 := (-width) / 2
 	y1 := (-height) / 2
 	plane[0][0] = x1
@@ -56,7 +55,7 @@ func NewRectLight(color mgl.Vec, lum float32, pos mgl.Vec, width float32,
 	plane[1][1] = -y1
 	plane[2][0] = -x1
 	plane[2][1] = y1
-	myRect := RectLight{&Area{pos, mgl.Vec{}, math.Pi / 2, Source{color, lum, 0}}, lum, pos, width, height, float32(num_w), float32(num_h),
+	myRect := RectLight{&Area{pos, vector.Vec{}, math.Pi / 2, Source{color, lum, 0}}, lum, pos, width, height, float32(num_w), float32(num_h),
 		math.Pi / 4, plane}
 	return &myRect
 }
@@ -71,9 +70,9 @@ func (light *RectLight) Lights() []Area {
 
 	a := light.Plane[1].Sub(light.Plane[0])
 	b := light.Plane[2].Sub(light.Plane[1])
-	n := mgl.Cross(a, b)
+	n := vector.Cross(a, b)
 
-	objMat := mgl.Mat3V(a, b, n)
+	objMat := vector.Mat3V(a, b, n)
 
 	x_step := float32(light.Width / light.Num_w)
 	y_step := float32(light.Width / light.Num_h)
@@ -89,7 +88,7 @@ func (light *RectLight) Lights() []Area {
 			}
 			x := (-light.Width / 2.0) + (float32(i) * x_step)
 			y := (-light.Height / 2.0) + (float32(j) * y_step)
-			pos := mgl.Vec{x, y, 0}
+			pos := vector.Vec{x, y, 0}
 			nPos := objMat.CrossVec(pos).Add(light.Pos)
 
 			lgt := Area{nPos, n, cutoff, Source{light.SampleLx.Lx().RGB, lum, 0}}
@@ -100,9 +99,9 @@ func (light *RectLight) Lights() []Area {
 }
 
 //Placeholder body
-func (light *RectLight) Luminance(point mgl.Vec) float32 {
+func (light *RectLight) Luminance(point vector.Vec) float32 {
 	return light.Lum
 }
-func (light *RectLight) Position() mgl.Vec {
+func (light *RectLight) Position() vector.Vec {
 	return light.Pos
 }

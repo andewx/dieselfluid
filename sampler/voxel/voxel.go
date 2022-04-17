@@ -3,8 +3,9 @@
 package voxel
 
 import (
-	V "github.com/andewx/dieselfluid/math/mgl"
 	"fmt"
+
+	"github.com/andewx/dieselfluid/math/vector"
 )
 
 const MAX_DIM = 15
@@ -26,7 +27,7 @@ type VRanges struct {
 
 //Storage Container For Particle Reference Indexes
 type VoxelArray struct {
-	PositionsRef            []V.Vec
+	PositionsRef            []vector.Vec
 	VoxelDescriptor         VRanges
 	ComponentStorageSizeMax int
 	Voxel                   [][]int
@@ -54,7 +55,7 @@ type ParticleVoxelArray struct {
 //Allocates 1.5 x Number Particles Voxel Based Array At A Resolution Not To Exceed MAX_DIM
 //If A Particle Cannot Be Added To the Voxel Bucket It will attempt to insert in Neighbor Grids
 //If No Positions Are Found In The Neighbor Grid The Particle Index Won't Be Added Or Updated
-func Allocate(positions []V.Vec, res int, scale_grid float32) VoxelArray {
+func Allocate(positions []vector.Vec, res int, scale_grid float32) VoxelArray {
 	//Determine Bucket Header length
 	buckets := res * res * res
 	num_particles := len(positions)
@@ -177,7 +178,7 @@ func (v VoxelArray) Utilization() float32 {
 }
 
 //Modulus Hashes A Position Into a Voxel Index Bucket - Lazy Hash Method
-func (v VoxelArray) VoxelHash(pos V.Vec) VoxelIndex {
+func (v VoxelArray) VoxelHash(pos vector.Vec) VoxelIndex {
 	x := pos[0]
 	y := pos[1]
 	z := pos[2]
@@ -214,7 +215,7 @@ func (v VoxelArray) GetSamples(idx int) []int {
 }
 
 //Gets Samples from position
-func (v VoxelArray) GetSampleVoxels(pos V.Vec, idx int) []int {
+func (v VoxelArray) GetSampleVoxels(pos vector.Vec, idx int) []int {
 	mNeighbors := v.VolumeLookup(pos)
 	sampleIndexes := make([]int, v.Samples)
 	index := 0
@@ -286,7 +287,7 @@ func (v VoxelArray) GetAllNeighbors(idx int) []int {
 }
 
 //Constructs Neighbor Voxels with position hashes
-func (v VoxelArray) VolumeLookup(pos V.Vec) VoxelLookup {
+func (v VoxelArray) VolumeLookup(pos vector.Vec) VoxelLookup {
 
 	vxNeighbors := VoxelLookup{make([]VoxelIndex, 27)}
 	i := 0
@@ -294,9 +295,9 @@ func (v VoxelArray) VolumeLookup(pos V.Vec) VoxelLookup {
 	for x := -1; x < 2; x++ {
 		for y := -1; y < 2; y++ {
 			for z := -1; z < 2; z++ {
-				nPos := V.Scale(pos, 1.0)
-				addVec := V.Vec{float32(x) * v.VoxelDescriptor.DivLength, float32(y) * v.VoxelDescriptor.DivLength, float32(z) * v.VoxelDescriptor.DivLength}
-				nPos = V.Add(nPos, addVec)
+				nPos := vector.Scale(pos, 1.0)
+				addVec := vector.Vec{float32(x) * v.VoxelDescriptor.DivLength, float32(y) * v.VoxelDescriptor.DivLength, float32(z) * v.VoxelDescriptor.DivLength}
+				nPos = vector.Add(nPos, addVec)
 				vxlHash := v.VoxelHash(nPos)
 				vxNeighbors.Indexes[i] = vxlHash
 				i++

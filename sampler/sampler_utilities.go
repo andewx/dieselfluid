@@ -1,8 +1,11 @@
 package sampler
 
-import "fmt"
-import "io/ioutil"
-import "log"
+import (
+	"fmt"
+	"io/ioutil"
+	"log"
+	"math"
+)
 
 /*-----------------------Sampler Dataset Utility Functions--------------------*/
 
@@ -15,13 +18,12 @@ func Lerp(c float32, v0 float32, v1 float32) float32 {
 	return v0 + r*c
 }
 
-//Linearly Interpoloates between two values
-func Lerp32(c float32, v0 float32, v1 float32) float32 {
-	r := v1 - v0
-	if c < 0.0 || c > 1.0 {
-		c = 0.0
-	}
-	return v0 + r*c
+// @no-mutate / @:sampler / @:interpolation / @:functional
+//Maps linear interpolation to a exponential function where x is in the [0,1]
+// in [0,1 domain]. w is an exponential scale parameter for e^(-wq)
+func Ease(x float32, w float32) float32 {
+	x = vector.Clamp1f(x, 0, 1)
+	return float32(math.Exp(float64(w*x - w)))
 }
 
 //For now just looks in resource folder
@@ -29,7 +31,7 @@ func ImportSampler(resource string) (*SamplerJSON, error) {
 	myImporter := SamplerJSON{}
 	content, err := ioutil.ReadFile("../" + resource)
 	if err != nil {
-		fmt.Printf("Unable to load GLTF File\n")
+		fmt.Printf("Unable to load sampler\n")
 		log.Fatal(err)
 	}
 	jsonErr := myImporter.UnmarshalJSON(content)

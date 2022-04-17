@@ -1,9 +1,10 @@
 package mesh
 
 import (
-	T "github.com/andewx/dieselfluid/geom/triangle"
-	Vec "github.com/andewx/dieselfluid/math/mgl"
 	"fmt"
+
+	T "github.com/andewx/dieselfluid/geom/triangle"
+	Vec "github.com/andewx/dieselfluid/math/vector"
 )
 
 //Triangle Mesh Storage - Implements Collider Interface
@@ -26,7 +27,7 @@ func InitMesh(vertices []Vec.Vec, origin Vec.Vec) Mesh {
 		v0 := Vec.Sub(vertices[i], origin)
 		dv0 := Vec.Dot(n, v0)
 		if dv0 > 0 {
-			Vec.Scl(n, -1.0)
+			Vec.Scale(n, -1.0)
 		}
 		nMesh.Normals[i/3] = n
 		index++

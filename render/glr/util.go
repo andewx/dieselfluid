@@ -1,10 +1,11 @@
 package glr
 
 import (
-	"github.com/andewx/dieselfluid/math/mgl"
 	"fmt"
-	"github.com/go-gl/gl/v4.1-core/gl"
 	"strings"
+
+	"github.com/andewx/dieselfluid/math/matrix"
+	"github.com/go-gl/gl/v4.1-core/gl"
 )
 
 func checkGlError(op string) {
@@ -44,15 +45,15 @@ func compileShader(source string, shaderType uint32) (uint32, error) {
 
 //Constructs a Matrix from Translation scale rotation quat
 func MatrixTRS(t []float32, r []float32, s []float32) []float32 {
-	M := mgl.Mat4(1.0)
+	M := matrix.Mat4(1.0)
 
 	//Trans Matrix Affine
-	T := mgl.Mat4(1.0)
+	T := matrix.Mat4(1.0)
 	T[12] = t[0]
 	T[13] = t[1]
 	T[14] = t[2]
 
-	S := mgl.Mat4(1.0)
+	S := matrix.Mat4(1.0)
 	S[0] = s[0]
 	S[5] = s[1]
 	S[10] = s[2]
