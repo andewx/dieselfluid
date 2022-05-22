@@ -4,7 +4,7 @@
 package mesh
 
 import (
-	"github.com/andewx/dieselfluid/math/mgl"
+	"github.com/andewx/dieselfluid/math/vector"
 )
 
 //Collider Interface Represents Polymorphic types for Mesh Attached
@@ -13,20 +13,20 @@ import (
 type Collider interface {
 
 	//Origin() returns the world space transformed mesh origin
-	Origin() mgl.Vec
+	Origin() vector.Vec
 
 	//UpdateOrigin() Updates the collider world space transformed origin
-	UpdateOrigin(mgl.Vec)
+	UpdateOrigin(vector.Vec)
 
 	//ImplicitCollide() Parametric Solver Returns boolean for collision inside
 	//plane and the float32 distance t for the collision. Typically if the distance
 	//is within some epsilon value you would count a collision
-	ImplicitCollide(point *mgl.Vec, dir *mgl.Vec) (collide bool, dist float32)
+	ImplicitCollide(point *vector.Vec, dir *vector.Vec) (collide bool, dist float32)
 
 	//ExplicitCollide() non-paramteric tests if the ray crosses some threshold by
 	//marching the ray some distance. Returns only whether a collision happened
 	//due to sign changing
-	ExplicitCollide(point *mgl.Vec, dir *mgl.Vec, dist float32) (collide bool)
+	ExplicitCollide(point *vector.Vec, dir *vector.Vec, dist float32) (collide bool)
 
 	//RenderObjectID Associates a Mesh with its render object
 	RenderObjectID() int
