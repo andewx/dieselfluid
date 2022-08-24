@@ -30,7 +30,7 @@ const (
 	LIGHT_PATH_SAMPLES = 24        //PATH SAMPLES
 	AU                 = 150000000 //SUN
 	HM                 = 1200      //AEROSOL MIE SCATTER HEIGHT
-	HR                 = 8500      //RAYLEIGH SCATTER HEIGHT
+	HR                 = 8000      //RAYLEIGH SCATTER HEIGHT
 
 )
 
@@ -61,36 +61,30 @@ func NewAtmosphere(lat float32, long float32) *Atmosphere {
 	sky := Atmosphere{}
 	sky.Earth = NewEarth(65.0, 0)
 	sky.Sun = polar.NewPolar(-AU)
-	sky.Light = light.Directional{vector.Vec{0, 0, 0}, vector.Vec{0, 0, 0}, light.Source{vector.Vec{1, 1, 1}, 18.5, light.WATTS}}
+	sky.Light = light.Directional{vector.Vec{0, 0, 0}, vector.Vec{0, 0, 0}, light.Source{vector.Vec{1, 1, 1}, 20.5, light.WATTS}}
 	sky.Spd = light.InitSunlight(20)
-	sky.SetDay(1.0)
+	sky.InitPosition(1.5, common.DEG2RAD*45.0)
 	return &sky
 }
 
-//Updates Frame of Reference Solar Coordinates with regards to Decimal Day Local Time
-func (sky *Atmosphere) StepDay(day float32) error {
+//Initialize sun positional reference coordinates in terms of polar coordinates
+func (sky *Atmosphere) InitPosition(absDay float32, inclinationOffset float32) error {
 	var err error
-	axialMag := float32(2 * AXIAL_TILT)
-	sky.Day += day
-	u := (sky.Day / 12.0) / (365.0 / 12.0) //Normalized cos units
-	axialTilt := AXIAL_TILT - float32(math.Cos(float64(u)))*axialMag
-	sky.Sun = sky.Sun.AddAzimuth(-sky.Day/365.0*common.DEG2RAD + (-sky.Day*24)*common.DEG2RAD + sky.Earth.Longitude) //Rotate sun directional azimuth
-	sky.Sun = sky.Sun.AddPolar(-axialTilt*common.DEG2RAD + sky.Earth.Latitude)
+	theta := (1 / 2 * PI) * absDay
+	pos, _ := polar.Vec2Sphere(vector.Vec{1.0, theta, PI - inclinationOffset})
+	sky.Sun = pos
 	sky.Dir, err = polar.Sphere2Vec(sky.Sun)
 	sky.Dir = sky.Dir.Norm()
 	sky.Light.SetDir(sky.Dir)
 	return err
 }
 
-//Updates Frame of Reference Solar Coordinates with regards to Decimal Day Local Time
-func (sky *Atmosphere) SetDay(day float32) error {
+//Updates sun positional coordinates by rotating Azimuth & Polar coords by delta degrees
+func (sky *Atmosphere) UpdatePosition(delta float32) error {
 	var err error
-	axialMag := float32(2 * AXIAL_TILT)
-	sky.Day = day
-	u := (sky.Day / 12.0) / (365.0 / 12.0) //Normalized cos units
-	axialTilt := AXIAL_TILT - float32(math.Cos(float64(u)))*axialMag
-	sky.Sun.AddAzimuth(-day/365.0*common.DEG2RAD + (-day*24)*common.DEG2RAD + sky.Earth.Longitude) //Rotate sun directional azimuth
-	sky.Sun.AddPolar(-axialTilt*common.DEG2RAD + sky.Earth.Latitude)
+	theta := common.DEG2RAD * delta
+	sky.Sun.AddAzimuth(theta)
+	sky.Sun.AddPolar(theta)
 	sky.Dir, err = polar.Sphere2Vec(sky.Sun)
 	sky.Dir = sky.Dir.Norm()
 	sky.Light.SetDir(sky.Dir)
@@ -236,23 +230,30 @@ func (sky *Atmosphere) VolumetricScatterRay(sample vector.Vec, view vector.Vec) 
 
 	rgb := vector.Vec{0, 0, 0} //Pixel Output
 
-	betaR := vector.Vec{0.0000088, .0000135, 0.0000331}
-	betaM := vector.Vec{0.000021, 0.000021, 0.000021}
+	betaR := vector.Vec{0.0000058, .0000135, 0.0000331}
+	betaM := vector.Vec{0.00210, 0.0021, 0.0021}
 	sumR := vector.Vec{0, 0, 0} //rayleigh
 	sumM := vector.Vec{0, 0, 0} //mie
 
 	//Compute rayleight/mie coefficients from sample vector and sun direction
 	u := vector.Dot(sample, sky.Dir)
+
 	mu := float64(u)
 	phaseR := float32(3.0 / (16.0 * PI) * (1.0 + mu*mu))
-	g := 0.79
+	g := 0.76
 	phaseM := float32(3.0 / (8.0 * PI) * ((1.0 - g*g) * (1.0 + mu*mu)))
 	phaseM = phaseM / float32((2+g*g)*math.Pow((1+g*g-2*g*mu), 1.5))
 	var opticalDepthR, opticalDepthM float32
 	var vmag0, vmag1, vds float32
 
+	//Limiting condition of Sun Reaching horizon -> Optical Depth Exp Growth
+	if sky.Dir[2] < 0.2 {
+		opticalDepthM = float32(math.Exp((float64(sky.Dir[2] * sky.Dir[2] * 5.0))))
+		opticalDepthR = float32(math.Exp((float64(sky.Dir[2] * sky.Dir[2] * 1.0))))
+	}
+
 	//Rayleigh Scatter Computation
-	sampleStep := float32(1.0 / RAYLEIGH_SAMPLES)
+	sampleStep := float32(1.0/RAYLEIGH_SAMPLES) * viewRayMag
 	for i := 1; i <= RAYLEIGH_SAMPLES && len(intersects) > 0; i++ {
 
 		//Generate Sample Rays along sample view ray path- assume sample ray is normalized
@@ -298,7 +299,7 @@ func (sky *Atmosphere) VolumetricScatterRay(sample vector.Vec, view vector.Vec) 
 		for j := 0; j < LIGHT_PATH_SAMPLES; j++ {
 			pathScale := sampler.Ease(lightPathSampleStep*float32(j), w)
 			lightPath := vector.Scale(lightRay, pathScale)
-			mag1 = pathScale * lightRayMag
+			mag1 = lightPath.Mag()
 			ds = mag1 - mag0
 			mag0 = mag1
 			lightPathSamplePosition := vector.Add(viewSample, lightPath)
@@ -312,9 +313,8 @@ func (sky *Atmosphere) VolumetricScatterRay(sample vector.Vec, view vector.Vec) 
 			opticalDepthLightR += float32(math.Exp(float64(-lightPathDepth/HR))) * ds
 			opticalDepthLightM += float32(math.Exp(float64(-lightPathDepth/HM))) * ds
 		}
-
-		//Compute Contributions and Accumulate
-		tau := betaR.Scale(opticalDepthR + opticalDepthLightR).Add(betaM.Scale(1.1).Scale(opticalDepthM + opticalDepthLightM))
+		//Compute Contributions and Accumulate (Add constant to the rayleigh scale)
+		tau := betaR.Scale(opticalDepthR + opticalDepthLightR).Add(betaM.Scale(1.24).Scale(opticalDepthM + opticalDepthLightM))
 		attenuation := vector.Vec{float32(math.Exp(float64(-tau[0]))), float32(math.Exp(float64(-tau[1]))), float32(math.Exp(float64(-tau[2])))}
 		sumR = sumR.Add(attenuation.Scale(hr))
 		sumM = sumM.Add(attenuation.Scale(hm))
