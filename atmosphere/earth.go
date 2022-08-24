@@ -52,9 +52,10 @@ func (earth *EarthCoords) GetSample(uv [2]float32) vector.Vec {
 	atmosphereCoords.AddPolar(earth.PolarCoord.Sphere[1] + uv[1]*earth.DomainOffset[1])
 	rE_Vec, _ := polar.Sphere2Vec(earth.PolarCoord)
 	rSK_Vec, _ := polar.Sphere2Vec(atmosphereCoords)
-	return common.Sub(rE_Vec, rSK_Vec)
+	return vector.Sub(rE_Vec, rSK_Vec)
 }
 
+//Approximation of sample depth based on Z coordinate
 func (earth *EarthCoords) GetSampleDepth(sample vector.Vec) float32 {
 	return sample[2]
 }

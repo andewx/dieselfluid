@@ -37,6 +37,20 @@ for i := 0; i < 10; i++ {
 }
 ```
 
+### Notes
+
+- Fixed Mie Scattering Error where sun disk failed to render
+- Adjust Sky.Light.Lx.Flux settings for sun intensity. Default (20.5)
+- Adjust Mie Scattering Phase Function by tuning g variable, forward scatter coefficient
+- BetaR , BetaM correspond to the extinction coefficients in RGB tristimulus color space. Tune these vectors according to atmopsheric composition to affect atmospheric colors
+
+### Todo
+- Eliminate Negative View Vector Evaluations
+- Faciliate Parameter Tuning for the Atmosphere Package as a whole with JSON Configurations
+- Approximate depth integrals for Rayleigh Mie scattering with Pre-Packaged LUTs for algorithmic speedup
+- Implement Volumetric Cloud Features
+- Implement Ozone Extinction
+
 
 ### Table of Measurements
 | phenomena | description | units | underlying units |

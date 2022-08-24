@@ -106,7 +106,7 @@ func (r *RenderSystem) Init(width int, height int, name string) error {
 	}
 
 	//Default cubemap - we can make more procedural soon
-	path := "../data/sky_4.png"
+	path := "../data/fluidmap.png"
 	if texID, err := r.MyRenderer.LoadEnvironment(path, 0); err != nil {
 		return err
 	} else {

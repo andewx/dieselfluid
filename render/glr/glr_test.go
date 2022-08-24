@@ -2,9 +2,10 @@ package glr
 
 import (
 	"fmt"
-	"github.com/go-gl/glfw/v3.3/glfw"
 	"runtime"
 	"testing"
+
+	"github.com/go-gl/glfw/v3.3/glfw"
 )
 
 func TestRender(t *testing.T) {

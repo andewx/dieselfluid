@@ -5,6 +5,8 @@ import (
 	"io/ioutil"
 	"log"
 	"math"
+
+	"github.com/andewx/dieselfluid/math/common"
 )
 
 /*-----------------------Sampler Dataset Utility Functions--------------------*/
@@ -22,7 +24,7 @@ func Lerp(c float32, v0 float32, v1 float32) float32 {
 //Maps linear interpolation to a exponential function where x is in the [0,1]
 // in [0,1 domain]. w is an exponential scale parameter for e^(-wq)
 func Ease(x float32, w float32) float32 {
-	x = vector.Clamp1f(x, 0, 1)
+	x = common.Clamp1f(x, 0, 1)
 	return float32(math.Exp(float64(w*x - w)))
 }
 
