@@ -38,7 +38,7 @@ for i := 0; i < 10; i++ {
 ```
 
 ### Notes
-
+- Next update will fix the celestial observer model. 
 - Fixed Mie Scattering Error where sun disk failed to render
 - Adjust Sky.Light.Lx.Flux settings for sun intensity. Default (20.5)
 - Adjust Mie Scattering Phase Function by tuning g variable, forward scatter coefficient

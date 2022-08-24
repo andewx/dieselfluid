@@ -225,6 +225,10 @@ func (sky *Atmosphere) ComputeRegion(uSampleDomain int, vSampleDomain int, x_cor
 //Based on the Attenuation/Mie Phase Scatter/RayleighScatter Terms
 func (sky *Atmosphere) VolumetricScatterRay(sample vector.Vec, view vector.Vec) vector.Vec {
 
+	if sample[2] < 0.0 {
+		return vector.Vec{0, 0, 0}
+	}
+
 	//Declare volumetric scatter ray vars
 	intersects := polar.RaySphereIntersect(sample, sky.Earth.GetPosition(), sky.Earth.GreaterSphere)
 	viewRay := vector.Scale(sample, polar.Priority(intersects))
