@@ -1,16 +1,20 @@
+//go:build !darwin
+// +build !darwin
+
 package glr
 
 /*
-
-Global Render Interface - OpenGL
-
-Holds render attributes and maps to windowing, event, CPU/GPU interface
-
-Holds the GLTF Scene Description and Renders those objects
+OpenGL Rendering Implementation version 4.3 including OpenCL Compute
 */
 
 import (
 	"fmt"
+	"github.com/andewx/dieselfluid/math/matrix"
+	"github.com/andewx/dieselfluid/math/vector"
+	"github.com/andewx/dieselfluid/render/camera"
+	"github.com/andewx/dieselfluid/render/defs"
+	"github.com/go-gl/gl/v4.3-core/gl"
+	"github.com/go-gl/glfw/v3.3/glfw"
 	"image"
 	"image/draw"
 	_ "image/png"
@@ -18,13 +22,6 @@ import (
 	"os"
 	"strings"
 	"time"
-
-	"github.com/andewx/dieselfluid/math/matrix"
-	"github.com/andewx/dieselfluid/math/vector"
-	"github.com/andewx/dieselfluid/render/camera"
-	"github.com/andewx/dieselfluid/render/defs"
-	"github.com/go-gl/gl/v4.1-core/gl"
-	"github.com/go-gl/glfw/v3.3/glfw"
 )
 
 //Implements  RenderAPIContext & Renderer Interface in float32 Env
@@ -101,6 +98,7 @@ type InputState struct {
 var Input *InputState = new(InputState)
 
 func InitGLFW(width int, height int, title string) (*glfw.Window, error) {
+
 	if err := glfw.Init(); err != nil {
 		return nil, fmt.Errorf("glr | Setup() - Failed glfw.Init()\n")
 	}
@@ -116,6 +114,7 @@ func InitGLFW(width int, height int, title string) (*glfw.Window, error) {
 	}
 
 	window.MakeContextCurrent()
+
 	window.SetMouseButtonCallback(ProcessMouse)
 	window.SetCursorPosCallback(ProcessCursor)
 	window.SetKeyCallback(ProcessInput)

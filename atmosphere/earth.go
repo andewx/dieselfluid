@@ -7,7 +7,7 @@ import (
 )
 
 const (
-	EARTH_RAD = 6370 * 1000
+	EARTH_RAD = 6370
 )
 
 //Earth Coordinates and Greater Earth will not be rotated for simplicity all
@@ -27,7 +27,7 @@ func NewEarth(lat float32, long float32) *EarthCoords {
 	myEarth.Latitude = lat * common.DEG2RAD
 	myEarth.Longitude = long * common.DEG2RAD
 	myEarth.PolarCoord = polar.NewPolar(EARTH_RAD)
-	myEarth.GreaterSphere = polar.NewPolar(EARTH_RAD + HR)
+	myEarth.GreaterSphere = polar.NewPolar(EARTH_RAD + (HR))
 	myEarth.getPolarSamplerDomain()
 
 	return &myEarth
@@ -52,9 +52,10 @@ func (earth *EarthCoords) GetSample(uv [2]float32) vector.Vec {
 	atmosphereCoords.AddPolar(earth.PolarCoord.Sphere[1] + uv[1]*earth.DomainOffset[1])
 	rE_Vec, _ := polar.Sphere2Vec(earth.PolarCoord)
 	rSK_Vec, _ := polar.Sphere2Vec(atmosphereCoords)
-	return common.Sub(rE_Vec, rSK_Vec)
+	return vector.Sub(rE_Vec, rSK_Vec)
 }
 
+//Approximation of sample depth based on Z coordinate
 func (earth *EarthCoords) GetSampleDepth(sample vector.Vec) float32 {
 	return sample[2]
 }

@@ -163,6 +163,8 @@ github.com/inconshreveable/mousetrap v1.0.0 h1:Z8tu5sraLXCXIcARxBp/8cbvlwVa7Z1NH
 github.com/inconshreveable/mousetrap v1.0.0/go.mod h1:PxqpIevigyE2G7u3NXJIT2ANytuPF1OarO4DADm73n8=
 github.com/jgautheron/goconst v1.5.1 h1:HxVbL1MhydKs8R8n/HE5NPvzfaYmQJA3o879lE4+WcM=
 github.com/jgautheron/goconst v1.5.1/go.mod h1:aAosetZ5zaeC/2EfMeRswtxUFBpe2Hr7HzkgX4fanO4=
+github.com/jgillich/go-opencl v0.0.0-20180608191952-a0efba3e5257 h1:CBOaGRHrueOBsM7vclAiWv4aecXkEAjGfYPGPgM9AdU=
+github.com/jgillich/go-opencl v0.0.0-20180608191952-a0efba3e5257/go.mod h1:zVb9psSAj+VpRI2Kp8J9sG437/VkNvl+l3dBMAUmGi4=
 github.com/jonboulle/clockwork v0.1.0/go.mod h1:Ii8DK3G1RaLaWxj9trq07+26W01tbo22gdxWY5EU2bo=
 github.com/json-iterator/go v1.1.6/go.mod h1:+SdeFBvtyEkXs7REEP0seUULqWtbJapLOCVDaaPEHmU=
 github.com/jstemmer/go-junit-report v0.0.0-20190106144839-af01ea7f8024/go.mod h1:6v2b51hI/fHJwM22ozAgKL4VKDeJcHhJFhtBdhmNjmU=
@@ -256,6 +258,8 @@ github.com/russross/blackfriday/v2 v2.0.1/go.mod h1:+Rmxgy9KzJVeS9/2gXHxylqXiyQD
 github.com/ryanuber/columnize v0.0.0-20160712163229-9b3edd62028f/go.mod h1:sm1tb6uqfes/u+d4ooFouqFdy9/2g9QGwK3SQygK0Ts=
 github.com/sam-kamerer/go-plister v1.2.0 h1:ZdEF1bhPUoGzwz5eFljw2K/A+oRXq/81jul/A3CHKEY=
 github.com/sam-kamerer/go-plister v1.2.0/go.mod h1:gTt1Ko2oTA5bfDYsNcLjRGyyx6LPxHIeo0ZTtTRZG2I=
+github.com/samuel/go-opencl v0.0.0-20171108220231-cbcfd10c32ad h1:zyvTnsJPPAqVg2v3bbvTI+RdbVPJufZ+CWCPOX0Dtp8=
+github.com/samuel/go-opencl v0.0.0-20171108220231-cbcfd10c32ad/go.mod h1:KCqoxhWgoxCWg13iOq53YFf50jlonuuhIpO916aWEkg=
 github.com/sean-/seed v0.0.0-20170313163322-e2103e2c3529/go.mod h1:DxrIzT+xaE7yg65j358z/aeFdxmN0P9QXhEzd20vsDc=
 github.com/securego/gosec v0.0.0-20200401082031-e946c8c39989 h1:rq2/kILQnPtq5oL4+IAjgVOjh5e2yj2aaCYi7squEvI=
 github.com/securego/gosec v0.0.0-20200401082031-e946c8c39989/go.mod h1:i9l/TNj+yDFh9SZXUTvspXTjbFXgZGP/UvhU1S65A4A=

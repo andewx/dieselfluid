@@ -23,6 +23,15 @@ import (
 type Vec []float32
 
 //------------Vector Utility Functions----------------------//
+
+func Cast(a [3]float32) []float32 {
+	return []float32{a[0], a[1], a[2]}
+}
+
+func CastFixed(a Vec) [3]float32 {
+	return [3]float32{a[0], a[1], a[2]}
+}
+
 //Vec2 creates new vector as 2-Length slice
 func Vec2() Vec {
 	return []float32{0, 0}
@@ -156,7 +165,7 @@ func LogVecError(vec Vec, op string) Vec {
 //Add sums each element index against the other vector a stores the result
 //in a new vector @DELEGATES
 func Add(a Vec, b Vec) Vec {
-	if !DimEq(a, b) {
+	if len(b) < len(a) {
 		return LogVecError(a, "Add(a Vec, b Vec)")
 	}
 	c := make([]float32, len(a))
@@ -169,7 +178,7 @@ func Add(a Vec, b Vec) Vec {
 //Add sums each element index against the other vector a stores the result
 //in a new vector @DELEGATES
 func (a Vec) Add(b Vec) Vec {
-	if !DimEq(a, b) {
+	if len(b) < len(a) {
 		return LogVecError(a, "Add(a Vec, b Vec)")
 	}
 	c := make([]float32, len(a))

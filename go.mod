@@ -20,6 +20,7 @@ require (
 	github.com/go-gl/glfw/v3.3/glfw v0.0.0-20211213063430-748e38ca8aec
 	github.com/gordonklaus/ineffassign v0.0.0-20210522101830-0589229737b2 // indirect
 	github.com/jgautheron/goconst v1.5.1 // indirect
+	github.com/jgillich/go-opencl v0.0.0-20180608191952-a0efba3e5257 // indirect
 	github.com/kisielk/errcheck v1.6.0 // indirect
 	github.com/maxence-charriere/go-app/v8 v8.0.2
 	github.com/mdempsky/maligned v0.0.0-20210215075342-f0178ee82032 // indirect
@@ -29,6 +30,7 @@ require (
 	github.com/pkg/errors v0.9.1 // indirect
 	github.com/pkg/profile v0.0.0-20170413231811-06b906832ed0 // indirect
 	github.com/russross/blackfriday v0.0.0-20180428102519-11635eb403ff // indirect
+	github.com/samuel/go-opencl v0.0.0-20171108220231-cbcfd10c32ad // indirect
 	github.com/securego/gosec v0.0.0-20200401082031-e946c8c39989 // indirect
 	github.com/stripe/safesql v0.2.0 // indirect
 	github.com/tsenart/deadcode v0.0.0-20160724212837-210d2dc333e9 // indirect

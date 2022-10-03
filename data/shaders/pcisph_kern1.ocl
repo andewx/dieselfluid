@@ -1,0 +1,282 @@
+//PCISPHs Shader - GLSL Compute Shader Executes the advection and pressure error solver
+//Note that the excess particles are the appended particle values which are not directly
+//Invoked by the compute shader
+
+#define PI 3.1415926
+#define MAX_FLOAT 99999.0
+#define LOCAL_GROUP_SIZE 4
+typedef struct __attribute__ ((packed)) _particle{
+  float3 position;
+  float3 velocity;
+  float3 force;
+  float pressure;
+  float density;
+}particle;
+
+type struct __attribute__ ((packed)) _temp_particle{
+  float3 vel;
+  float3 pos;
+  float density;
+}temp_particle;
+
+type struct __attribute__ ((packed))_intdata{
+  int particles;
+  int boundarys;
+  int buckets;
+  int bucket_size;
+}intdata;
+
+type struct __attribute__ ((packed))_floatdata{
+  float time_step;
+  float mass;
+  float delta;
+  float maxVel;
+  float h0;
+}floatdata;
+
+
+//Kernel Functions
+float f(float x, float h){
+  if (x >= h){
+    return 0.0;
+  }
+  float q = (1-(x*x/h*h));
+  return ((315.0)/(64*PI*h*h*h))*q*q;
+}
+
+float f(float x){
+  float h = fluid_data.h0;
+  if (x >= h){
+    return 0.0;
+  }
+  float q = (1-(x*x/h*h));
+  return ((315.0)/(64*PI*h*h*h))*q*q;
+}
+
+float o1d(float x, float h){
+  if (x >= h){
+    return 0.0;
+  }
+  float q = (1-(x/h));
+  return ((-45.0)/(PI*h*h*h*h))*q*q;
+}
+
+float o1d(float x){
+  float h = fluid_data.h0;
+  if (x >= h){
+    return 0.0;
+  }
+  float q = (1-(x/h));
+  return ((-45.0)/(PI*h*h*h*h))*q*q;
+}
+
+float o2d(float x, float h){
+  if (x >= h){
+    return 0.0;
+  }
+  float q = (1-(x/h));
+  return ((90.0)/(PI*h*h*h*h*h))*q;
+}
+
+float o2d(float x){
+  float h = fluid_data.h0;
+  if (x >= h){
+    return 0.0;
+  }
+  float q = (1-(x/h));
+  return ((90.0)/(PI*h*h*h*h*h))*q;
+}
+
+float3 f_grad(float x, float h,float3 dir){
+  if (x >= h){
+    return float3(0.0,0.0,0.0);
+  }
+  return -o1d(x,h)*dir;
+}
+
+float3 f_grad(float x, float3 dir){
+  float h = fluid_data.h0;
+  if (x >= h){
+    return float3(0.0,0.0,0.0);
+  }
+  return -o1d(x,h)*dir;
+}
+
+
+//Hashing Function given hyperplane
+int sgn(float x){
+  if (x <= 0){
+    return 0;
+  }else{
+    return 1;
+  }
+}
+
+//Simplified matching CFL constraint since GPU shader is evaluating the CFL condition
+float cfl(){
+  if(fluid_data.maxVel != 0.0){
+  	return (1.0 / fluid_data.maxVel);
+  }
+  return 0.5;
+}
+
+
+//Hashing Algorithm of LSH
+int lsh_h(float3 v){
+  int hash_val = 0;
+  for(int i = 0; i < 8; i++){
+    hash_val << 1;
+    hash_val += sgn(dot(vectors.vec[i], v));
+  }
+  return hash_val;
+}
+
+int get_sample(float3 position, int offset){
+  int m_hash = lsh_h(position);
+  return locality.data[m_hash*sizes.buckets + offset];
+}
+
+float interp_density(float3 position){
+  float sum = 0.0;
+  for(int i = 0; i < 150; i++){
+    int j = get_sample(position,i);
+    if (j != 0){
+      float x = length(position - fluid.particles[j].position);
+      sum += fluid_data.mass * f(x);
+    }
+  }
+  return sum;
+}
+
+float particle_density(int x){
+  float sum = f(0);
+  for(int i = 0; i < 150; i++){
+    int j = get_sample(fluid[x].position,i);
+    if (j != 0 && j != x){
+      float x = length(fluid[x].position - fluid.particles[j].position);
+      sum += fluid_data.mass * f(x);
+    }
+  }
+  return sum;
+}
+
+float tait_eos(float x){
+  float g = 7.16;
+  float w = 2.15;
+  float d0 = 1000.0;
+  float p0 = 1013.25;
+  float y = (w/g)*(pow(x/d0,g)-1.0);
+  if (y <= 0.0) {
+    return 0.0;
+  }
+  return y;
+}
+void evaluate_pressure(int particle){
+      fluid.particles[particle].pressure = tait_eos(fluid.particles[particle].density);
+}
+
+
+float3 pressure_force(int x){
+  float3 force = float3(0.0,0.0,0.0);
+  float di = fluid[x].density;
+  float di2 = di*di;
+  float m = -(fluid_data.mass*fluid_data.mass);
+  float pi = fluid[x].pressure;
+  float pi2 = pi * pi;
+
+  for (int i = 0; i < 150; i++){
+    int j = get_sample(fluid[x].position, i);
+    if (j != 0 && j != x){
+      float dj = fluid.particles[j].density;
+      float dj2 = dj*dj;
+      float pj = fluid.particles[j].pressure;
+      float3 dir = fluid[x].position - fluid.particles[j].position;
+      force += m*(pi/di2+pj/dj2)*f_grad(length(dir), 1.0, dir);
+    }
+  }
+  fluid[x].force += force;
+  return force;
+}
+
+float3 viscosity_force(int x){
+  float3 force = float3(0.0,0.0,0.0);
+  float m = (fluid_data.mass);
+
+  for (int i = 0; i < 150; i++){
+    int j = get_sample(fluid[x].position,i);
+    if( j != 0 && j != x){
+      float dj = 1/fluid.particles[j].density;
+      float3 dir = fluid[x].position - fluid.particles[j].position;
+      float3 vel_diff = (fluid.particles[j].velocity -  fluid[x].velocity)*(dj);
+      force += vel_diff*m*o2d(length(dir));
+    }
+  }
+  fluid[x].force += force;
+  return force;
+}
+
+void external_force(int x){
+  fluid[x].force += float3(0.0, -fluid_data.mass*-9.81,0.0);
+}
+
+float clamp_greater(float x, float a){
+  if (x >= a){
+    return  x;
+  }else{
+    return a;
+  }
+}
+
+
+
+void pressure_solve(int x){
+  float d0 = 1000.0;
+  float w = 0.5;
+  int iters = 0;
+  int max_iters = 5;
+  float error = fluid[x].pressure-d0;
+  float delta = 0.1;
+
+  float3 predict_vel = fluid[x].velocity + cfl() * fluid[x].force/fluid_data.mass;
+  float3 predict_pos = fluid[x].position + cfl() * fluid[x].velocity;
+  //Predict Velocity and Positions
+  temp[x].vel = predict_vel;
+  temp[x].pos = predict_pos;
+
+  while(error > 0.2 && iters <= max_iters){
+
+    //Compute Pressure from the density error
+    float density = particle_density(x);
+    float error = density - d0;
+    float pressure = fluid_data.delta * error;
+    fluid[x].pressure += pressure;
+    fluid[x].density = density;
+
+    //Update predicted positions and velocity
+    pressure_force(x);
+    temp[x].vel = temp[x].vel + fluid_data.time_step * fluid[x].force/fluid_data.mass;
+    temp[x].pos = temp[x].pos + fluid_data.time_step * fluid[x].velocity;
+    iters++;
+  }
+}
+
+
+//Compute Gradient Level Forces + Projected Intermediate Velocities and Positions
+kernel void predict_correct(global particle* fluid,
+                            global int* mints,
+                            global float* mfloats,
+                            global int* hashmap,
+                            global float3* vectors,
+                            global temp_particle* temp){
+  int x = get_global_id(0);
+  float ts = cfl();
+  viscosity_force(x);
+  external_force(x);
+  pressure_solve(x);
+  fluid[x].velocity = fluid[x].velocity + ts* fluid[x].force/fluid_data.mass;
+  fluid[x].position = fluid[x].position + ts*fluid[x].velocity;
+  //CFL Condtions
+  if (length(fluid[x].velocity) > fluid_data.maxVel){
+    fluid_data.maxVel = length(fluid[x].velocity);
+  }
+}

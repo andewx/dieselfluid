@@ -2,15 +2,22 @@
 
 ### Project Status
 
-Much of the computational fluid library went under a major refactor and is now in ```model``` package and has been postponed in favor the renderer. The ```render``` package has been developed and is undergoing testing and further feature additions. We need to add a few more core features and a suitable gui system to consider this repository release ready however the repository remains open for those wishing to contribute.
-
-If you would like to contribute please contact the author andewx and volunteer to complete a core feature listed in the issues section of the project. The motivation for this project is to bring in a framework to experiment with physics and fluids in GoLang.
+Refactor build ongoing once modules are complete the testing, code coverage, and
+project documentation will be updated and moved into a docs repository
 
 ![DieselFluid Go Logo](logo.png?raw=true "DieselFluid Go")
 
 
 # README
+Currently Apple OSX has deprecated Modern OpenGL and only supports OpenGL 4.1 core
+profiles with future deprecation on modern M1 chipsets. Currently all render routines
+run throuhg OpenGL although the calls have been wrapped in an API and interface. Future
+updates could theoretically support OpenGL rendering. Proper support for abstract rendering
+interfaces require further decoupling and refactors which are not being supported at this time. 
 
+Since OSX Darwin builds do not support OpenGL 4.3 (GL COMPUTE SHADER) profiles efforts have been made to split the project builds between Darwin and all other builds. Path separators however are currently
+not windows compatible although a refactor in the future could add support for windows.
+OSX Darwin Builds leverage the OpenCL glow build interfaces for GPU support
 
 # OVERVIEW
 

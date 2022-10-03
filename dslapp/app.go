@@ -2,11 +2,11 @@ package dslapp
 
 import (
 	"fmt"
-	"log"
-	"os"
-
+	"github.com/andewx/dieselfluid/common"
 	"github.com/asticode/go-astikit"
 	"github.com/asticode/go-astilectron"
+	"log"
+	"os"
 )
 
 type ElectronApp struct {
@@ -27,9 +27,9 @@ func New() (*ElectronApp, error) {
 	myApp.Port = 8000
 	myApp.App, err = astilectron.New(log.New(os.Stderr, "", 0), astilectron.Options{
 		AppName:            "DieselFluid",
-		AppIconDefaultPath: "/Users/briananderson/go/src/github.com/andewx/dieselfluid/dslapp/icons/diesel.png",  // If path is relative, it must be relative to the data directory
-		AppIconDarwinPath:  "/Users/briananderson/go/src/github.com/andewx/dieselfluid/dslapp/icons/diesel.icns", // Same here
-		BaseDirectoryPath:  "/Users/briananderson/go/src/github.com/andewx/dieselfluid/dslapp/",
+		AppIconDefaultPath: common.ProjectRelativePath("dslapp/icons/diesel.png"),  // If path is relative, it must be relative to the data directory
+		AppIconDarwinPath:  common.ProjectRelativePath("dslapp/icons/diesel.icns"), // Same here
+		BaseDirectoryPath:  common.ProjectRelativePath("dslapp"),
 		TCPPort:            &myApp.Port,
 	})
 
@@ -50,7 +50,7 @@ func (app *ElectronApp) Init() error {
 		return sErr
 	}
 
-	var w, err = app.App.NewWindow("//Users/briananderson/go/src/github.com/andewx/dieselfluid/dslapp/resources/index.html", &astilectron.WindowOptions{
+	var w, err = app.App.NewWindow(common.ProjectRelativePath("dslapp/resources/index.html"), &astilectron.WindowOptions{
 		Center: astikit.BoolPtr(true),
 		Height: astikit.IntPtr(1024),
 		Width:  astikit.IntPtr(1280),

@@ -1,7 +1,6 @@
 package polar
 
 import (
-	"fmt"
 	"math"
 
 	"github.com/andewx/dieselfluid/math/common"
@@ -22,16 +21,10 @@ func NewPolar(rad float32) Polar {
 func Vec2Sphere(x vector.Vec) (Polar, error) {
 	var err error
 	r := x.Mag()
-	az := float32(math.Atan2(float64(x[1]), float64(x[0])))
+	az := PolarAzimuth(x)
 	incl := float32(math.Acos(float64(x[2] / r)))
 
-	if math.IsNaN(float64(az)) {
-		x[0] = 0.1
-		az = float32(math.Atan2(float64(x[1]), float64(x[0])))
-		err = fmt.Errorf("Atan2 failed -- vec(x) set to 0.0001")
-	}
-
-	sph := Polar{vector.Vec{r, az, incl}, vector.Vec{0, 0, 0}}
+	sph := Polar{vector.Vec{r, float32(az), incl}, vector.Vec{0, 0, 0}}
 	return sph, err
 }
 
@@ -42,15 +35,6 @@ func Sphere2Vec(x Polar) (vector.Vec, error) {
 	a = float64(x.Sphere[0])
 	b = float64(x.Sphere[1])
 	c = float64(x.Sphere[2])
-
-	if math.IsNaN(float64(x.Sphere[1])) {
-		b = 0.1
-		err = fmt.Errorf("Azimuth is NaN --Setting Azimuth to 0.0001")
-	}
-
-	if b == 0 {
-		b = 0.1
-	}
 
 	x0 := float32(a * math.Sin(c) * math.Cos(b))
 	x1 := float32(a * math.Sin(c) * math.Sin(b))
@@ -77,23 +61,27 @@ func (s Polar) Add(b Polar) Polar {
 	return s
 }
 
+//Add azimuth in degrees
 func (s Polar) AddAzimuthDegrees(b float32) Polar {
 	c := b * common.DEG2RAD
 	s.Sphere[1] = s.Sphere[1] + c
 	return s
 }
 
+//Add Azimuth Angle
 func (s Polar) AddAzimuth(b float32) Polar {
 	s.Sphere[1] = s.Sphere[1] + b
 	return s
 }
 
+//Add inclination angle in degrees
 func (s Polar) AddPolarDegrees(b float32) Polar {
 	c := b * common.DEG2RAD
 	s.Sphere[2] = s.Sphere[2] + c
 	return s
 }
 
+//Add inclination angle
 func (s Polar) AddPolar(b float32) Polar {
 	s.Sphere[2] = s.Sphere[2] + b
 	return s
@@ -123,6 +111,14 @@ func Priority(t []*Intersection) float32 {
 		}
 	}
 	return min
+}
+
+//Calculates azimuth from vector
+func PolarAzimuth(vec vector.Vec) float64 {
+	x := vec[0]
+	y := vec[1]
+	res := math.Atan2(float64(x), float64(y))
+	return res
 }
 
 func RaySphereIntersect(r vector.Vec, o vector.Vec, s Polar) []*Intersection {

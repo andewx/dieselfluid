@@ -1,6 +1,11 @@
 package light
 
-import "math"
+import (
+	"math"
+
+	"github.com/andewx/dieselfluid/math/matrix"
+	"github.com/andewx/dieselfluid/math/vector"
+)
 
 //Approximates area light for contributions.
 type LightIntegral interface {
@@ -72,7 +77,7 @@ func (light *RectLight) Lights() []Area {
 	b := light.Plane[2].Sub(light.Plane[1])
 	n := vector.Cross(a, b)
 
-	objMat := vector.Mat3V(a, b, n)
+	objMat := matrix.Mat3V(a, b, n)
 
 	x_step := float32(light.Width / light.Num_w)
 	y_step := float32(light.Width / light.Num_h)
