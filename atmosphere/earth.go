@@ -7,7 +7,7 @@ import (
 )
 
 const (
-	EARTH_RAD = 6370 * 1000
+	EARTH_RAD = 6370
 )
 
 //Earth Coordinates and Greater Earth will not be rotated for simplicity all
@@ -27,7 +27,7 @@ func NewEarth(lat float32, long float32) *EarthCoords {
 	myEarth.Latitude = lat * common.DEG2RAD
 	myEarth.Longitude = long * common.DEG2RAD
 	myEarth.PolarCoord = polar.NewPolar(EARTH_RAD)
-	myEarth.GreaterSphere = polar.NewPolar(EARTH_RAD + HR)
+	myEarth.GreaterSphere = polar.NewPolar(EARTH_RAD + (HR))
 	myEarth.getPolarSamplerDomain()
 
 	return &myEarth

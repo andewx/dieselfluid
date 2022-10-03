@@ -1,6 +1,7 @@
 package render
 
 import (
+	"github.com/andewx/dieselfluid/common"
 	"runtime"
 	"testing"
 )
@@ -10,7 +11,7 @@ func TestGraphics(t *testing.T) {
 	runtime.LockOSThread()
 	Sys, _ := Init("MaterialSphere.gltf")
 
-	if err := Sys.Init(1024, 720, "andewx/diselfluid/render"); err != nil {
+	if err := Sys.Init(1024, 720, common.ProjectRelativePath("render")); err != nil {
 		t.Error(err)
 	}
 

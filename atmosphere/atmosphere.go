@@ -4,8 +4,7 @@ import (
 	"fmt"
 	"image"
 	"image/color"
-	"image/png"
-	_ "image/png"
+	"image/jpeg"
 	"math"
 	"os"
 	"strconv"
@@ -26,10 +25,10 @@ we simulate atmospheric scattering processes via Rayleigh/Mie Scattering.
 const (
 	PI                 = 3.141529
 	AXIAL_TILT         = 23.5      //Degrees
-	RAYLEIGH_SAMPLES   = 24        //RAYLEIGH sampling
-	LIGHT_PATH_SAMPLES = 24        //PATH SAMPLES
+	RAYLEIGH_SAMPLES   = 25        //RAYLEIGH sampling
+	LIGHT_PATH_SAMPLES = 25        //PATH SAMPLES
 	AU                 = 150000000 //SUN
-	HM                 = 1200      //AEROSOL MIE SCATTER HEIGHT
+	HM                 = 1500      //AEROSOL MIE SCATTER HEIGHT
 	HR                 = 8000      //RAYLEIGH SCATTER HEIGHT
 
 )
@@ -83,7 +82,7 @@ func (sky *Atmosphere) InitPosition(absDay float32, inclinationOffset float32) e
 func (sky *Atmosphere) UpdatePosition(delta float32) error {
 	var err error
 	theta := common.DEG2RAD * delta
-	sky.Sun.AddAzimuth(theta)
+	//sky.Sun.AddAzimuth(theta)
 	sky.Sun.AddPolar(theta)
 	sky.Dir, err = polar.Sphere2Vec(sky.Sun)
 	sky.Dir = sky.Dir.Norm()
@@ -93,8 +92,7 @@ func (sky *Atmosphere) UpdatePosition(delta float32) error {
 
 //Creates texture from from computed atmosphere, non-clamping allows for HDR storage
 func (sky *Atmosphere) CreateTexture(width int, height int, clamp bool, filename string) {
-	wd, _ := os.Getwd()
-	fmt.Printf("Working Dir: %s\n", wd)
+	fmt.Printf("Processing file:%s\n", filename)
 	rgbs := sky.ComputeAtmosphere(width, height) //pre-normalized (non-hdr)
 	ImageFromPixels(rgbs, width, height, clamp, 0xff, filename)
 }
@@ -149,20 +147,45 @@ func ImageFromPixels(pixels []vector.Vec, width int, height int, clamp bool, alp
 	for x := 0; x < width; x++ {
 		for y := 0; y < height; y++ {
 			pixel := pixels[index]
+			r_pixel := float64(pixel[0])
+			g_pixel := float64(pixel[1])
+			b_pixel := float64(pixel[2])
 			if clamp {
-				pixel.Clamp(0, 1)
+				//pixel.Clamp(0, 1)
+				g := 0.5
+				b := -1.0
+
+				if r_pixel < 1.31 {
+					r_pixel = (math.Log(r_pixel + 1.0))
+				} else {
+					r_pixel = (1 / (1 + math.Exp(-r_pixel*g+b)))
+				}
+
+				if g_pixel < 1.31 {
+					g_pixel = (math.Log(g_pixel + 1.0))
+				} else {
+					g_pixel = (1 / (1 + math.Exp(-g_pixel*g+b)))
+				}
+
+				if b_pixel < 1.31 {
+					b_pixel = (math.Log(b_pixel + 1.0))
+				} else {
+					b_pixel = (1 / (1 + math.Exp(-b_pixel*g+b)))
+				}
+
 			}
-			r := uint8(pixel[0] * 255)
-			g := uint8(pixel[1] * 255)
-			b := uint8(pixel[2] * 255)
+			r := uint8(float32(r_pixel) * 255)
+			g := uint8(float32(g_pixel) * 255)
+			b := uint8(float32(b_pixel) * 255)
 			img.Set(x, y, color.RGBA{r, g, b, alpha})
 			index++
 		}
 	}
 
-	//Encode as PNG
+	//Encode as JPG
+	options := jpeg.Options{80}
 	f, _ := os.Create(filename)
-	err := png.Encode(f, img)
+	err := jpeg.Encode(f, img, &options)
 
 	if err != nil {
 		fmt.Printf("Error writing image to %s\n", filename)
@@ -242,14 +265,21 @@ func (sky *Atmosphere) VolumetricScatterRay(sample vector.Vec, view vector.Vec) 
 	phaseR := float32(3.0 / (16.0 * PI) * (1.0 + mu*mu))
 	g := 0.76
 	phaseM := float32(3.0 / (8.0 * PI) * ((1.0 - g*g) * (1.0 + mu*mu)))
-	phaseM = phaseM / float32((2+g*g)*math.Pow((1+g*g-2*g*mu), 1.5))
+	phaseM = phaseM / float32((2+g*g)*math.Pow((1+g*g-2*g*mu), 1.1))
 	var opticalDepthR, opticalDepthM float32
 	var vmag0, vmag1, vds float32
+	var lfactor = float32(1.0)
 
-	//Limiting condition of Sun Reaching horizon -> Optical Depth Exp Growth
-	if sky.Dir[2] < 0.2 {
-		opticalDepthM = float32(math.Exp((float64(sky.Dir[2] * sky.Dir[2] * 5.0))))
-		opticalDepthR = float32(math.Exp((float64(sky.Dir[2] * sky.Dir[2] * 1.0))))
+	//Aysmptotic Scaling
+	scale_factor := float32(7.0)
+	if sky.Dir[2] < 1.0 && sky.Dir[2] >= 0 {
+		z := math.Abs(float64(sky.Dir[2]))
+		lfactor = 1 / (float32(z))
+		if lfactor > scale_factor {
+			lfactor = scale_factor
+		}
+	} else if sky.Dir[2] <= 0 {
+		lfactor = scale_factor
 	}
 
 	//Rayleigh Scatter Computation
@@ -257,7 +287,7 @@ func (sky *Atmosphere) VolumetricScatterRay(sample vector.Vec, view vector.Vec) 
 	for i := 1; i <= RAYLEIGH_SAMPLES && len(intersects) > 0; i++ {
 
 		//Generate Sample Rays along sample view ray path- assume sample ray is normalized
-		w := float32(4.0)
+		w := float32(1.0)
 		sampleScale := sampler.Ease(float32(i)*sampleStep, w)
 
 		viewSample := vector.Scale(viewRay, sampleScale)
@@ -279,7 +309,6 @@ func (sky *Atmosphere) VolumetricScatterRay(sample vector.Vec, view vector.Vec) 
 		lightIntersects := polar.RaySphereIntersect(vector.Scale(sky.Dir, -1.0), viewSampleOrigin, sky.Earth.GreaterSphere)
 		viRay := viewSampleOrigin.Sub(sky.Dir)
 		if len(lightIntersects) == 0 {
-			fmt.Printf("No Ray Sphere Intersection")
 			return vector.Vec{0, 0, 0}
 		}
 
@@ -295,7 +324,7 @@ func (sky *Atmosphere) VolumetricScatterRay(sample vector.Vec, view vector.Vec) 
 
 		var opticalDepthLightM, opticalDepthLightR float32
 
-		//Compute light path to sample position
+		//Compute light path to sample position - and light path segment length
 		for j := 0; j < LIGHT_PATH_SAMPLES; j++ {
 			pathScale := sampler.Ease(lightPathSampleStep*float32(j), w)
 			lightPath := vector.Scale(lightRay, pathScale)
@@ -305,16 +334,17 @@ func (sky *Atmosphere) VolumetricScatterRay(sample vector.Vec, view vector.Vec) 
 			lightPathSamplePosition := vector.Add(viewSample, lightPath)
 			lightPathDepth := sky.Earth.GetSampleDepth(lightPathSamplePosition)
 
-			if lightPathDepth < 0 {
-				break
-			}
+			/*	if lightPathDepth < 0 {
+					break
+				}
+			*/
 
 			//Accumlate Light Path Transmittance
 			opticalDepthLightR += float32(math.Exp(float64(-lightPathDepth/HR))) * ds
 			opticalDepthLightM += float32(math.Exp(float64(-lightPathDepth/HM))) * ds
 		}
 		//Compute Contributions and Accumulate (Add constant to the rayleigh scale)
-		tau := betaR.Scale(opticalDepthR + opticalDepthLightR).Add(betaM.Scale(1.24).Scale(opticalDepthM + opticalDepthLightM))
+		tau := betaR.Scale(lfactor * (opticalDepthR + opticalDepthLightR)).Add(betaM.Scale(1.25).Scale(opticalDepthM + opticalDepthLightM))
 		attenuation := vector.Vec{float32(math.Exp(float64(-tau[0]))), float32(math.Exp(float64(-tau[1]))), float32(math.Exp(float64(-tau[2])))}
 		sumR = sumR.Add(attenuation.Scale(hr))
 		sumM = sumM.Add(attenuation.Scale(hm))

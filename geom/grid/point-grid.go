@@ -16,6 +16,7 @@ type Grid struct {
 func BuildGrid(sclVec V.Vec, TransOrigin V.Vec, DimVec V.Vec) Grid {
 	MyGrid := Grid{}
 	MyGrid.Origin = TransOrigin
+	MyGrid.DimXYZ = DimVec
 	MyGrid.MinXYZ = V.Vec{float32(-1.0), float32(-1.0), float32(-1.0)}
 	MyGrid.MinXYZ = V.ScaleVar(MyGrid.MinXYZ, sclVec)
 	MinDouble := V.ScaleVar(MyGrid.MinXYZ, V.Vec{-2.0, -2.0, -2.0})
@@ -35,6 +36,7 @@ func BuildKernGrid(sclVar V.Vec, TransOrigin V.Vec, kern float32) (Grid, int) {
 	MinDouble := V.ScaleVar(MyGrid.MinXYZ, V.Vec{-2.0, -2.0, -2.0})
 	LenSides := V.Sub(MyGrid.MinXYZ, MinDouble)
 	DimVec := V.Vec{LenSides[0] / kern, LenSides[1] / kern, LenSides[2] / kern}
+	MyGrid.DimXYZ = DimVec
 	Dimensionality := int(LenSides[0] / kern)
 	InvDimVec := V.Vec{1 / DimVec[0], 1 / DimVec[1], 1 / DimVec[2]}
 	MyGrid.StepXYZ = V.ScaleVar(LenSides, InvDimVec)
@@ -44,6 +46,13 @@ func BuildKernGrid(sclVar V.Vec, TransOrigin V.Vec, kern float32) (Grid, int) {
 
 func ijk2Vec(i int, j int, k int) V.Vec {
 	return V.Vec{float32(i), float32(j), float32(k)}
+}
+
+//Map 3D Index - maps a 3D I,J,K position to 1D flattened array
+func (g Grid) Index(i int, j int, k int) int {
+	i_w := int(g.DimXYZ[0])
+	j_w := int(g.DimXYZ[1])
+	return (k * i_w * j_w) + (k * i_w) + i
 }
 
 //Assigns Position Based on [i][j][k] Grid Position element

@@ -1,19 +1,22 @@
+//go:build !darwin
+// +build !darwin
+
 package render
 
 import (
 	"fmt"
-	"math" //GoLang Entity Component System
-	"runtime"
-	"time"
-
 	"github.com/EngoEngine/ecs"
+	"github.com/andewx/dieselfluid/common"
 	"github.com/andewx/dieselfluid/math/matrix"
 	"github.com/andewx/dieselfluid/math/vector"
 	"github.com/andewx/dieselfluid/render/defs"
 	"github.com/andewx/dieselfluid/render/glr"
 	"github.com/andewx/dieselfluid/render/scene"
-	"github.com/go-gl/gl/v4.1-core/gl"
+	"github.com/go-gl/gl/v4.3-core/gl"
 	"github.com/go-gl/glfw/v3.3/glfw"
+	"math" //GoLang Entity Component System
+	"runtime"
+	"time"
 )
 
 const (
@@ -46,7 +49,7 @@ type RenderSystem struct {
 //type which is the RenderSystem and initializes with a GLTF scene file name
 //located in the "dslfluid.com/resources/" directory
 func Init(scn string) (RenderSystem, error) {
-	graph, err := scene.InitScene("../data/", scn)
+	graph, err := scene.InitScene(common.ProjectRelativePath("data/"), scn)
 	mRenderer := glr.Renderer()
 	var MainRenderer RenderSystem
 
@@ -299,8 +302,8 @@ func (r *RenderSystem) CompileLink() error {
 	r.Shaders.ShaderUniforms = make(map[string]int32, MIN_PARAM_SIZE)
 	r.Shaders.ProgramLinks = make(map[uint32]uint32, MIN_PARAM_SIZE)
 
-	r.Shaders.VertexShaderPaths["default"] = "../shader/glsl/material.vert"
-	r.Shaders.FragmentShaderPaths["default"] = "../shader/glsl/material.frag"
+	r.Shaders.VertexShaderPaths["default"] = common.ProjectRelativePath("data/shaders/material.vert")
+	r.Shaders.FragmentShaderPaths["default"] = common.ProjectRelativePath("data/shaders/material.frag")
 
 	//----------Uniforms ------------------------------//
 	r.Shaders.ShaderUniforms["mvp"] = 0

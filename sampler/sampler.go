@@ -1,15 +1,18 @@
 package sampler
 
-import "github.com/andewx/dieselfluid/sampler/voxel"
+import "github.com/andewx/dieselfluid/math/vector"
 
-//Sampler represents abstracted sampler classes for 1D,2D,3D samplers with given
-//PDF sampling functions.
+//Sampler represents abstracted sampler class for domains
 type Sampler interface {
 	UpdateSampler()
-	Run()
+	Run(status chan int)
+	Hash([3]float32) int
 	GetSamples(i int) []int
-}
-
-type VoxelSampler struct {
-	Voxel voxel.VoxelArray
+	GetRegionalSamples(hash int, width int) []int
+	GetData() [][]int
+	GetElements() int
+	GetVectors() []vector.Vec
+	GetHashSize() int
+	GetBuckets() int
+	BucketSize() int
 }

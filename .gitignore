@@ -1,3 +1,5 @@
 # ignore vendor
+# ignore etc
 
 vendor/
+etc/

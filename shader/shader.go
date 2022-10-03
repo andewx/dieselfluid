@@ -1,11 +1,14 @@
+//go:build !darwin
+// +build !darwin
+
 package shader
 
 import (
 	"fmt"
+	"github.com/go-gl/gl/v4.3-core/gl"
 	"io/ioutil"
 	"strings"
-
-	"github.com/go-gl/gl/v4.1-core/gl"
+	"unsafe"
 )
 
 const (
@@ -34,7 +37,7 @@ type Program struct {
 	message        string
 	log            string
 	linked         bool
-	uniforms       map[string]int32
+	uniforms       map[string]*uint32
 }
 
 //-----------------------------------
@@ -54,10 +57,18 @@ func NewShader(filename string, path string, name string, shader_type uint32) (*
 		sh.log = sh.log + "\nNewShader() - Invalid Path (see message)"
 		return sh, err
 	}
+	sh.log += "File Found " + filename
 	sh.contents = string(bytes) + "\x00"
 
-	if shader_type != FRAG_SHADER || shader_type != VERT_SHADER || shader_type != GEOM_SHADER || shader_type != COMPUTE_SHADER {
+	if shader_type != FRAG_SHADER && shader_type != VERT_SHADER && shader_type != GEOM_SHADER && shader_type != gl.COMPUTE_SHADER {
+		sh.log += "Not A Valid Shader Type" + string(shader_type) + "\n"
 		return sh, fmt.Errorf("Not a valid GL Shader Type %d", shader_type)
+	}
+
+	if shader_type == gl.COMPUTE_SHADER {
+		sh.log += "Compute Shader Specified. Please ensure you are running a working version of GL 4.3 or higher\n"
+		version := gl.GoStr(gl.GetString(gl.VERSION))
+		fmt.Printf("OpenGL Version: %s\n", version)
 	}
 
 	err = sh.Compile()
@@ -68,7 +79,38 @@ func NewShader(filename string, path string, name string, shader_type uint32) (*
 	}
 	sh.compiled = true
 	sh.message = "Compiled"
-	sh.log += "\nCompiled"
+	sh.log += "Compiled"
+	sh.contents = ""
+	return sh, nil
+}
+
+func NewShaderFromSource(source string, name string, shader_type uint32) (*Shader, error) {
+
+	var err error
+
+	sh := &Shader{"", "", name, "", 0, "", "", shader_type, false}
+	sh.contents = source + "\x00"
+
+	if shader_type != FRAG_SHADER && shader_type != VERT_SHADER && shader_type != GEOM_SHADER && shader_type != gl.COMPUTE_SHADER {
+		sh.log += "Not A Valid Shader Type" + string(shader_type) + "\n"
+		return sh, fmt.Errorf("Not a valid GL Shader Type %d", shader_type)
+	}
+
+	if shader_type == gl.COMPUTE_SHADER {
+		sh.log += "Compute Shader Specified. Please ensure you are running a working version of GL 4.3 or higher\n"
+		version := gl.GoStr(gl.GetString(gl.VERSION))
+		fmt.Printf("OpenGL Version: %s\n", version)
+	}
+
+	err = sh.Compile()
+	if err != nil {
+		fmt.Printf("Error compiling %s path %s type %d", sh.name, full_path, sh.shader_type)
+		fmt.Printf(err.Error())
+		return sh, err
+	}
+	sh.compiled = true
+	sh.message = "Compiled"
+	sh.log += "Compiled"
 	sh.contents = ""
 	return sh, nil
 }
@@ -115,12 +157,16 @@ func (m *Shader) IsCompiled() bool {
 	return m.compiled
 }
 
+func (m *Shader) PrintMessage() {
+	fmt.Printf("Message: %s\nLog: %s\n", m.message, m.log)
+}
+
 //-----------------------------------
 //          Program
 //-----------------------------------
 
 func NewProgram(name string) *Program {
-	pg := &Program{name, 0, make(map[string]*Shader), "", "", false, make(map[string]int32, 20)}
+	pg := &Program{name, 0, make(map[string]*Shader), "", "", false, make(map[string]*uint32, 20)}
 	pg.gpu_program_id = gl.CreateProgram()
 	return pg
 }
@@ -141,7 +187,11 @@ func (m *Program) DeleteShader(name string) {
 
 /*Adds Uniform*/
 func (m *Program) AddUniform(name string) {
-	m.uniforms[name] = 0
+	*m.uniforms[name] = 0
+}
+
+func (m *Program) Address(name string) *uint32 {
+	return m.uniforms[name]
 }
 
 /*Links programs with all attached valid compiled shaders, assumes that all shaders and uniforms
@@ -161,9 +211,9 @@ func (m *Program) Link() error {
 	m.linked = true
 
 	for key, _ := range m.uniforms {
-		loc, uerr := m.getUniformLocation(key)
+		loc, uerr := m.GetUniformLocation(key)
 		if uerr == nil {
-			m.uniforms[key] = loc
+			*m.uniforms[key] = loc
 		}
 	}
 	return nil
@@ -181,12 +231,12 @@ func (m *Program) IsLinked() bool {
 	return m.linked
 }
 
-func (m *Program) Location(name string) int32 {
-	return m.uniforms[name]
+func (m *Program) Location(name string) uint32 {
+	return *m.uniforms[name]
 }
 
-func (m *Program) getUniformLocation(name string) (int32, error) {
-	loc := gl.GetUniformLocation(m.gpu_program_id, gl.Str(name+"\x00"))
+func (m *Program) GetUniformLocation(name string) (uint32, error) {
+	loc := uint32(gl.GetUniformLocation(m.gpu_program_id, gl.Str(name+"\x00")))
 	if loc == gl.INVALID_VALUE || loc == gl.INVALID_OPERATION {
 		err := fmt.Errorf("Uniform Location %s Not Found\n", name)
 		return loc, err
@@ -194,7 +244,27 @@ func (m *Program) getUniformLocation(name string) (int32, error) {
 	return loc, nil
 }
 
-func (m *Program) shaderLog() {
+func (m *Program) BindShaderStorage(name string, layout uint32, length int, data unsafe.Pointer) {
+	gl.GenBuffers(1, m.Address(name))
+	gl.BindBuffer(gl.SHADER_STORAGE_BUFFER, m.Location(name))
+	gl.BufferData(gl.SHADER_STORAGE_BUFFER, length, data, gl.STREAM_DRAW)
+	gl.BindBufferBase(gl.SHADER_STORAGE_BUFFER, layout, m.Location(name))
+	gl.BindBuffer(gl.SHADER_STORAGE_BUFFER, 0)
+}
+
+func (m *Program) GetMaxWorkGroup() [3]int32 {
+	work_group_size := [3]int32{}
+	gl.GetIntegeri_v(gl.MAX_COMPUTE_WORK_GROUP_SIZE, 0, &work_group_size[0])
+	gl.GetIntegeri_v(gl.MAX_COMPUTE_WORK_GROUP_SIZE, 1, &work_group_size[1])
+	gl.GetIntegeri_v(gl.MAX_COMPUTE_WORK_GROUP_SIZE, 2, &work_group_size[2])
+	return work_group_size
+}
+
+func (m *Program) DispatchCompute(x int32, y int32, z int32) {
+	gl.DispatchCompute(uint32(x), uint32(y), uint32(z))
+}
+
+func (m *Program) ShaderLog() {
 	var logLength = int32(2048)
 	log := strings.Repeat("\x00", int(logLength+1))
 	gl.GetProgramInfoLog(m.gpu_program_id, logLength, nil, gl.Str(log))
@@ -204,10 +274,11 @@ func (m *Program) shaderLog() {
 	fmt.Printf("SHADER UNIFORMS[%d]\n", active)
 }
 
-func check_error(op string) {
+func check_error(op string) int {
 	error := gl.GetError()
 	if error == gl.NO_ERROR {
-		return
+		return 0
 	}
 	fmt.Printf(op+"GL Error %d: ", error)
+	return int(error)
 }

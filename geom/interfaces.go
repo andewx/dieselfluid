@@ -12,6 +12,7 @@ type Collider interface {
 	//Collision takes a (Position, Velocity, Delta Time, Particle Radius)
 	//Outputs: Normal, Barycentric Coords, Collision Point, Collision Bool
 	Collision(P Vec.Vec, V Vec.Vec, dt float64, r float32) (Vec.Vec, Vec.Vec, Vec.Vec, bool)
+	GenerateBoundaryParticles(density float32) [][3]float32
 }
 
 //GridPoint Returns single point from 3D Index Grid Reference
