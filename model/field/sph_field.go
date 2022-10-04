@@ -55,6 +55,10 @@ func (p SPHField) Particles() []model.Particle {
 	return p.particles
 }
 
+func (p SPHField) Field() *SPHField {
+	return &p
+}
+
 func (p SPHField) Mass() float32 {
 	return p.mass
 }

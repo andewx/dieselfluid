@@ -68,8 +68,24 @@ func (s HashSampler) GetData() [][]int {
 	return s.Table
 }
 
-func (s HashSampler) GetVectors() []vector.Vec {
-	return s.HashVectors
+func (s HashSampler) GetData1D() []int {
+	nArray := make([]int, s.Buckets*s.Size)
+	for i := 0; i < s.Buckets; i++ {
+		for j := 0; j < s.Size; j++ {
+			nArray[i*s.Size+j] = s.Table[i][j]
+		}
+	}
+	return nArray
+}
+
+func (s HashSampler) GetVectors() []float32 {
+	nArray := make([]float32, len(s.HashVectors)*3)
+	for i := 0; i < len(s.HashVectors); i++ {
+		for j := 0; j < 3; j++ {
+			nArray[i*3+j] = s.HashVectors[i][j]
+		}
+	}
+	return nArray
 }
 
 func (s HashSampler) GetBuckets() int {

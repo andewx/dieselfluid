@@ -1,7 +1,5 @@
 package sampler
 
-import "github.com/andewx/dieselfluid/math/vector"
-
 //Sampler represents abstracted sampler class for domains
 type Sampler interface {
 	UpdateSampler()
@@ -11,8 +9,9 @@ type Sampler interface {
 	GetRegionalSamples(hash int, width int) []int
 	GetData() [][]int
 	GetElements() int
-	GetVectors() []vector.Vec
+	GetVectors() []float32
 	GetHashSize() int
 	GetBuckets() int
 	BucketSize() int
+	GetData1D() []int
 }
