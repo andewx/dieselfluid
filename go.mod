@@ -15,6 +15,7 @@ require (
 	github.com/asticode/go-astilectron-bundler v0.7.12 // indirect
 	github.com/asticode/go-astilog v1.9.0 // indirect
 	github.com/client9/misspell v0.3.4 // indirect
+	github.com/go-delve/delve v1.9.1 // indirect
 	github.com/go-gl/gl v0.0.0-20210501111010-69f74958bac0
 	github.com/go-gl/glfw v0.0.0-20210715014612-ab6297867137
 	github.com/go-gl/glfw/v3.3/glfw v0.0.0-20211213063430-748e38ca8aec
@@ -39,6 +40,7 @@ require (
 	gopkg.in/check.v1 v1.0.0-20190902080502-41f04d3bba15 // indirect
 	gopkg.in/gemnasium/logrus-airbrake-hook.v2 v2.1.2 // indirect
 	honnef.co/go/tools v0.2.0 // indirect
+	modernc.org/memory v1.4.0 // indirect
 	mvdan.cc/interfacer v0.0.0-20180901003855-c20040233aed // indirect
 	mvdan.cc/lint v0.0.0-20170908181259-adc824a0674b // indirect
 	mvdan.cc/unparam v0.0.0-20210701114405-894c3c7ee6a6 // indirect

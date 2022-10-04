@@ -165,11 +165,14 @@ func LogVecError(vec Vec, op string) Vec {
 //Add sums each element index against the other vector a stores the result
 //in a new vector @DELEGATES
 func Add(a Vec, b Vec) Vec {
+	l := len(a)
+	g := len(b)
 	if len(b) < len(a) {
-		return LogVecError(a, "Add(a Vec, b Vec)")
+		l = len(b)
+		g = len(a)
 	}
-	c := make([]float32, len(a))
-	for i := 0; i < len(c); i++ {
+	c := make([]float32, g)
+	for i := 0; i < l; i++ {
 		c[i] = a[i] + b[i]
 	}
 	return c
@@ -178,11 +181,14 @@ func Add(a Vec, b Vec) Vec {
 //Add sums each element index against the other vector a stores the result
 //in a new vector @DELEGATES
 func (a Vec) Add(b Vec) Vec {
+	l := len(a)
+	g := len(b)
 	if len(b) < len(a) {
-		return LogVecError(a, "Add(a Vec, b Vec)")
+		l = len(b)
+		g = len(a)
 	}
-	c := make([]float32, len(a))
-	for i := 0; i < len(c); i++ {
+	c := make([]float32, g)
+	for i := 0; i < l; i++ {
 		c[i] = a[i] + b[i]
 	}
 	return c

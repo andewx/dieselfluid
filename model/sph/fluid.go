@@ -68,8 +68,8 @@ func (p SPH) Particles() []model.Particle {
 	return p.field.Particles()
 }
 
-func (p SPH) Field() field.SPHField {
-	return p.Field()
+func (p SPH) Field() *field.SPHField {
+	return p.field.Field()
 }
 
 //Update Nearest Neighbors
