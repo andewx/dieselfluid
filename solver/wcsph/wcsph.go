@@ -1,12 +1,13 @@
-package solver
+package wcsph
 
 import (
+	"github.com/andewx/dieselfluid/math/vector"
 	"github.com/andewx/dieselfluid/model"
 	"github.com/andewx/dieselfluid/model/sph"
 )
 
 type WCSPH struct {
-	core sph.SPHCore
+	core sph.SPH
 }
 
 //---------SPHCore Run Methods------------------------//
@@ -14,12 +15,11 @@ func (p WCSPH) Run() {
 	done := false
 
 	for !done {
-		p.core.ComputeDensity()
-		p.core.AccumulatePressure()
-		p.core.Accumulate_NonPressure()
-		p.core.Collide()
+		p.core.DensityAll()
+		p.core.ExternalAll(vector.Vec{0, -9.81, 0})
+		p.core.PressureAll()
 		p.core.Update()
-		p.core.UpdateTime()
+		p.core.CFL()
 	}
 
 	return
@@ -40,12 +40,11 @@ func (p WCSPH) Run_(t chan int) {
 
 		//Executes full in frame computation loop.core.
 		if sync {
-			p.core.ComputeDensity()
-			p.core.AccumulatePressure()
-			p.core.Accumulate_NonPressure()
-			p.core.Collide()
+			p.core.DensityAll()
+			p.core.ExternalAll(vector.Vec{0, -9.81, 0})
+			p.core.PressureAll()
 			p.core.Update()
-			p.core.UpdateTime()
+			p.core.CFL()
 
 			//Channel Monitor - Monitor Blocking I/O Request
 			status := <-t

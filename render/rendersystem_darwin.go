@@ -7,12 +7,12 @@ import (
 	"time"
 
 	"github.com/EngoEngine/ecs"
+	"github.com/andewx/dieselfluid/common"
 	"github.com/andewx/dieselfluid/math/matrix"
 	"github.com/andewx/dieselfluid/math/vector"
 	"github.com/andewx/dieselfluid/render/defs"
 	"github.com/andewx/dieselfluid/render/glr"
 	"github.com/andewx/dieselfluid/render/scene"
-	"github.com/andewx/dieselfuid/common"
 	"github.com/go-gl/gl/v4.1-core/gl"
 	"github.com/go-gl/glfw/v3.3/glfw"
 )
@@ -348,7 +348,7 @@ func (r *RenderSystem) CompileLink() error {
 	}
 
 	//-------------Assign default shader uniform locations-------------------//
-	for key, _ := range r.Shaders.ShaderUniforms {
+	for key := range r.Shaders.ShaderUniforms {
 		id := r.Shaders.ProgramID["default"]
 		uniform_id, _ := r.MyRenderer.GetUniformLocation(id, key)
 		r.Shaders.ShaderUniforms[key] = uniform_id

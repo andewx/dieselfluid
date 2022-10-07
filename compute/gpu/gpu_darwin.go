@@ -1,11 +1,14 @@
 package gpu
 
-import "github.com/andewx/dieselfluid/compute"
-import "github.com/andewx/dieselfluid/common"
-import "github.com/jgillich/go-opencl/cl"
-import "io/ioutil"
-import "fmt"
-import "log"
+import (
+	"fmt"
+	"io/ioutil"
+	"log"
+
+	"github.com/andewx/dieselfluid/common"
+	"github.com/andewx/dieselfluid/compute"
+	"github.com/andewx/go-opencl/cl"
+)
 
 const (
 	OK   = 0

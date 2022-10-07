@@ -8,6 +8,7 @@ require (
 	github.com/EngoEngine/ecs v1.0.5
 	github.com/alecthomas/gocyclo v0.0.0-20150208221726-aa8f8b160214 // indirect
 	github.com/alexkohler/nakedret v1.0.0 // indirect
+	github.com/andewx/go-opencl/cl v0.0.0-20221007051948-3a406447a1f9 // indirect
 	github.com/asticode/go-astichartjs v0.2.0 // indirect
 	github.com/asticode/go-astikit v0.15.0
 	github.com/asticode/go-astilectron v0.27.0
