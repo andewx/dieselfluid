@@ -3,10 +3,11 @@
 package lsh
 
 import (
-	"github.com/andewx/dieselfluid/math/vector"
-	"github.com/andewx/dieselfluid/model"
 	"math/rand"
 	"time"
+
+	"github.com/andewx/dieselfluid/math/vector"
+	"github.com/andewx/dieselfluid/model"
 )
 
 const LOAD_FACTOR = float32(1.5)
@@ -22,11 +23,11 @@ type HashSampler struct {
 	Indexes     []int
 	HashVectors []vector.Vec
 	HashBits    int
-	Particles   []model.Particle
+	Particles   model.ParticleField
 }
 
 //Dynamically allocates the hash table
-func Allocate(num_particles int, buckets int, hash_bits int, particles []model.Particle) HashSampler {
+func Allocate(num_particles int, buckets int, hash_bits int, particles model.ParticleField) HashSampler {
 	sampler := HashSampler{}
 	time_seed := time.Now()
 	factor := int(float32(num_particles/buckets) * LOAD_FACTOR)
@@ -124,13 +125,16 @@ func (s HashSampler) Reset() {
 
 func (s HashSampler) UpdateSampler() {
 	s.Reset()
-	for i := 0; i < len(s.Particles); i++ {
-		s.Insert(s.Hash(vector.CastFixed(s.Particles[i].Position())), i)
+
+	for i := 0; i < s.Particles.N(); i++ {
+		particle := s.Particles.Get(i)
+		s.Insert(s.Hash(particle.Position), i)
 	}
 }
 
-func (s HashSampler) GetSamples(particle int) []int {
-	return s.Table[s.Hash(vector.CastFixed(s.Particles[particle].Position()))]
+func (s HashSampler) GetSamples(x int) []int {
+	particle := s.Particles.Get(x)
+	return s.Table[s.Hash(particle.Position)]
 }
 
 func (s HashSampler) GetRegionalSamples(hash int, width int) []int {

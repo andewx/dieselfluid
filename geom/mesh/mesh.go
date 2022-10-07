@@ -57,16 +57,15 @@ func (g *Mesh) Collision(P vector.Vec, V vector.Vec, dt float64, r float32) (vec
 }
 
 //Generates particles in world space given the world space triangles
-func (g *Mesh) GenerateBoundaryParticles(density float32, tri_list []T.Triangle) [][3]float32 {
+func (g *Mesh) GenerateBoundaryParticles(density float32) [][3]float32 {
 	d_step := 1 / density
 
-	num_particles := int(density*density) * len(tri_list)
+	num_particles := int(density*density) * len(g.Vertexes) / 3
 	particle_list := make([][3]float32, num_particles)
 	particle_index := 0
 
-	for index := 0; index < len(tri_list); index++ {
-
-		tri := tri_list[index]
+	for index := 0; index < len(g.Vertexes); index++ {
+		tri := T.InitTriangle(g.Vertexes[index], g.Vertexes[index+1], g.Vertexes[index+2])
 		v0 := vector.Sub(*tri.Verts[0], *tri.Verts[1])
 		v1 := vector.Sub(*tri.Verts[0], *tri.Verts[2])
 

@@ -6,7 +6,7 @@
 #endif
 
 //Compute Gradient Level Forces + Projected Intermediate Velocities and Positions
-kernel void predict_correct(global particle* fluid,
+kernel void predict_correct(global float3 *positions, global float3 *velocities, global float3 *forces, global float *densities, global float *pressures,
                             global intdata* sizes,
                             global floatdata* data,
                             global int* table,
@@ -14,13 +14,14 @@ kernel void predict_correct(global particle* fluid,
                             global temp_particle* temp){
   int x = get_global_id(0);
   float ts = cfl(data->maxVel);
-  viscosity_force(x, data,fluid,table,sizes,vecs);
-  external_force(x,data ,fluid);
-  pressure_solve(x,temp,data,fluid,table,sizes,vecs);
-  fluid[x].velocity = fluid[x].velocity + ts* fluid[x].force/data->mass;
-  fluid[x].position = fluid[x].position + ts*fluid[x].velocity;
+  particles m_particles = {positions, velocities,forces, densities, pressures};
+  viscosity_force(x, data, &m_particles,table,sizes,vecs);
+  external_force(x,data, &m_particles);
+  pressure_solve(x,temp,data, &m_particles,table,sizes,vecs);
+  velocities[x] = velocities[x] + ts* forces[x]/data->mass;
+  positions[x] = positions[x] + ts*velocities[x];
   //CFL Condtions
-  if (length(fluid[x].velocity) > data->maxVel){
-    data->maxVel = length(fluid[x].velocity);
+  if (length(velocities[x]) > data->maxVel){
+    data->maxVel = length(velocities[x]);
   }
 }

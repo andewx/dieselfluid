@@ -1,7 +1,11 @@
 package defs
 
-import "github.com/EngoEngine/ecs"
-import "fmt"
+import (
+	"fmt"
+	"unsafe"
+
+	"github.com/EngoEngine/ecs"
+)
 
 //Render component defintions pacakge, decouples type definitions allows for global
 //package use of definitions, exports effectively to top level module
@@ -49,6 +53,8 @@ type OGLRenderer interface {
 	GetUniformLocation(program uint32, name string) (int32, error)
 	Layout(num_vao int, num_vbo int, num_tex int) error
 	BufferArrayData(vboID int, width int, offset int, ref []byte) error
+	BufferArrayFloat(vboID int, width int, offset int, ref []float32) error
+	BufferArrayPointer(vboID int, width int, ref unsafe.Pointer) error
 	BufferIndexData(vboID int, width int, offset int, ref []byte) error
 	InvalidateBuffer(vboID int, width int) error
 	Draw(mesh_entities []*MeshEntity, shaders *ShadersMap, materials map[string]*Material, mapid uint32) error
@@ -62,6 +68,8 @@ type OGLRenderer interface {
 	ShouldClose() bool
 	SwapBuffers()
 	Status() error
+	GetVBO(int) uint32
+	GetVAO(int) uint32
 }
 
 //PipelineRenderer interface deals with DX12, METAL, VULKAN like APIs that support

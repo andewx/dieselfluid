@@ -1,17 +1,18 @@
 package render
 
 import (
-	"github.com/andewx/dieselfluid/common"
 	"runtime"
 	"testing"
+
+	"github.com/andewx/dieselfluid/common"
 )
 
 func TestGraphics(t *testing.T) {
 
 	runtime.LockOSThread()
-	Sys, _ := Init("MaterialSphere.gltf")
+	Sys, _ := Init(common.ProjectRelativePath("data/meshes/materialsphere/MaterialSphere.gltf"))
 
-	if err := Sys.Init(1024, 720, common.ProjectRelativePath("render")); err != nil {
+	if err := Sys.Init(1024, 720, common.ProjectRelativePath("render"), false); err != nil {
 		t.Error(err)
 	}
 
@@ -22,8 +23,9 @@ func TestGraphics(t *testing.T) {
 	if err := Sys.Meshes(); err != nil {
 		t.Error(err)
 	}
+	message := make(chan string)
 
-	if err := Sys.Run(); err != nil {
+	if err := Sys.Run(message); err != nil {
 		t.Error(err)
 	}
 }

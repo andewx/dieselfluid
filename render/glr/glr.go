@@ -262,6 +262,15 @@ func (renderer *GLRenderer) VertexArrayAttr(index int, components int, gltype ui
 }
 
 /*
+BufferArrayFloat() - Allocates float buffer to gl vertex buffer object
+*/
+func (renderer *GLRenderer) BufferArrayFloat(vboID int, width int, offset int, ref []float32) error {
+	gl.BindBuffer(gl.ARRAY_BUFFER, renderer.VBO[vboID])
+	gl.BufferData(gl.ARRAY_BUFFER, width, gl.Ptr(&ref[offset]), gl.STATIC_DRAW)
+	return nil
+}
+
+/*
 BufferArrayData(vboID, width, byteSize, ref) - binds a VBO and fills its byte data
 using the simplest terms possible. The rendersystem will need to pass in the unique buffer ID
 it wants to fill. This VBO ID is not the GL generated VBO id but the reference index. The ref array
@@ -270,6 +279,12 @@ will need to have the precomputed offset already computed so that ref[0] is the 
 func (renderer *GLRenderer) BufferArrayData(vboID int, width int, offset int, ref []byte) error {
 	gl.BindBuffer(gl.ARRAY_BUFFER, renderer.VBO[vboID])
 	gl.BufferData(gl.ARRAY_BUFFER, width, gl.Ptr(&ref[offset]), gl.STATIC_DRAW)
+	return nil
+}
+
+func (renderer *GLRenderer) BufferArrayPointer(vboID int, width int, ref unsafe.Pointer) error {
+	gl.BindBuffer(gl.ARRAY_BUFFER, renderer.VBO[vboID])
+	gl.BufferData(gl.ARRAY_BUFFER, width, ref, gl.STATIC_DRAW)
 	return nil
 }
 
@@ -296,6 +311,14 @@ func (renderer *GLRenderer) BindArrayBuffer(vbo_index int) {
 
 func (r *GLRenderer) SwapBuffers() {
 	r.Window.SwapBuffers()
+}
+
+func (r *GLRenderer) GetVBO(index int) uint32 {
+	return r.VBO[index]
+}
+
+func (r *GLRenderer) GetVAO(index int) uint32 {
+	return r.VAO[index]
 }
 
 func (r *GLRenderer) LoadTexture(path string, index int) (uint32, error) {

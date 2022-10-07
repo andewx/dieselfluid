@@ -7,6 +7,7 @@ import (
 	"testing"
 
 	"github.com/andewx/dieselfluid/common"
+	"github.com/andewx/dieselfluid/compute"
 	"github.com/andewx/dieselfluid/compute/gpu"
 	"github.com/andewx/dieselfluid/math/vector"
 	"github.com/andewx/dieselfluid/model/sph"
@@ -83,26 +84,37 @@ func TestOpenCompute(t *testing.T) {
 	sph := sph.Init(float32(1.0), vector.Vec{0, 0, 0}, nil, DIM, true)
 
 	//Pre-Arrange
-	ints := []int{sph.N(), len(sph.Particles()) - sph.N(), sph.Field().GetSampler().GetBuckets(), sph.Field().GetSampler().BucketSize()}
+	field := sph.Field()
+	ints := []int{sph.N(), field.Particles.Total() - field.Particles.N(), sph.Field().GetSampler().GetBuckets(), sph.Field().GetSampler().BucketSize()}
 	floats := []float32{sph.CFL(), sph.Field().Mass(), sph.Delta(), sph.MaxV(), sph.Field().GetKernelLength()}
 	hash_buffer_len := ints[2] * ints[3]
-	particle_bytes := len(sph.Field().Particles())*(3*(3*4)) + (2 * 4)
+	particle_bytes := field.Particles.Total() * (3 * 4)
+	vec3_bytes := field.Particles.N() * 3 * 4
 	vector_bytes := 8 * 3 * 4
 	temp_bytes := 2*3*4 + 4
 
-	bf0, _ := opencl.Context.CreateEmptyBuffer(cl.MemReadWrite, particle_bytes)
 	bf1, _ := opencl.Context.CreateEmptyBuffer(cl.MemReadWrite, len(ints)*4)
 	bf2, _ := opencl.Context.CreateEmptyBuffer(cl.MemReadWrite, len(floats)*4)
 	bf3, _ := opencl.Context.CreateEmptyBuffer(cl.MemReadWrite, hash_buffer_len*4)
 	bf4, _ := opencl.Context.CreateEmptyBuffer(cl.MemReadWrite, vector_bytes)
-	bf5, _ := opencl.Context.CreateEmptyBuffer(cl.MemReadWrite, temp_bytes*sph.N())
+	bf5, _ := opencl.Context.CreateEmptyBuffer(cl.MemReadWrite, temp_bytes*field.Particles.N())
 
-	opencl.Buffers["particles"] = bf0
+	bf6, _ := opencl.Context.CreateEmptyBuffer(cl.MemReadWrite, particle_bytes)         //positions
+	bf7, _ := opencl.Context.CreateEmptyBuffer(cl.MemReadWrite, vec3_bytes)             //velocities
+	bf8, _ := opencl.Context.CreateEmptyBuffer(cl.MemReadWrite, vec3_bytes)             //forces
+	bf9, _ := opencl.Context.CreateEmptyBuffer(cl.MemReadWrite, field.Particles.N()*4)  //densities
+	bf10, _ := opencl.Context.CreateEmptyBuffer(cl.MemReadWrite, field.Particles.N()*4) //pressures
+
 	opencl.Buffers["ints"] = bf1
 	opencl.Buffers["floats"] = bf2
 	opencl.Buffers["hash"] = bf3
 	opencl.Buffers["vecs"] = bf4
 	opencl.Buffers["temp"] = bf5
+	opencl.Buffers["positions"] = bf6
+	opencl.Buffers["velocities"] = bf7
+	opencl.Buffers["forces"] = bf8
+	opencl.Buffers["densities"] = bf9
+	opencl.Buffers["pressures"] = bf10
 
 	/*----------------------------Create Kernels And Programs *-----------------*/
 	s0, err := ioutil.ReadFile(common.ProjectRelativePath("data/shaders/opencl/pcisph/pci_density.c"))
@@ -135,11 +147,17 @@ func TestOpenCompute(t *testing.T) {
 	opencl.Kernels["compute_density"] = k1
 	opencl.Kernels["predict_correct"] = k2
 
-	gpu, err := New_GPUPredictorCorrector(sph, opencl)
+	m_compute := &gpu.ComputeGPU{}
+	descriptor := compute.Descriptor{Work: []int{}, Local: []int{}, Size: 4}
+	m_compute = gpu.New_ComputeGPU(m_compute, descriptor, &opencl)
+
+	gpu, err := New_GPUPredictorCorrector(m_compute, sph, &opencl, false)
 	if err != nil {
 		t.Errorf("Failed gpu PCISPH Implementation %v", err)
 	}
-	err = gpu.Run()
+
+	message := make(chan string)
+	err = gpu.Run(message)
 	if err != nil {
 		t.Errorf("Failed Kernel Execution %v", err)
 	}

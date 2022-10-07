@@ -1,17 +1,11 @@
 package glr
 
 /*
-OpenGL Rendering Implementation version 4.3 including OpenCL Compute - OSX Build Constraint
+OpenGL Rendering Implementation version 4.1 including OpenCL Compute - OSX Build Constraint
 */
 
 import (
 	"fmt"
-	"github.com/andewx/dieselfluid/math/matrix"
-	"github.com/andewx/dieselfluid/math/vector"
-	"github.com/andewx/dieselfluid/render/camera"
-	"github.com/andewx/dieselfluid/render/defs"
-	"github.com/go-gl/gl/v4.1-core/gl"
-	"github.com/go-gl/glfw/v3.3/glfw"
 	"image"
 	"image/draw"
 	_ "image/png"
@@ -19,6 +13,14 @@ import (
 	"os"
 	"strings"
 	"time"
+	"unsafe"
+
+	"github.com/andewx/dieselfluid/math/matrix"
+	"github.com/andewx/dieselfluid/math/vector"
+	"github.com/andewx/dieselfluid/render/camera"
+	"github.com/andewx/dieselfluid/render/defs"
+	"github.com/go-gl/gl/v4.1-core/gl"
+	"github.com/go-gl/glfw/v3.3/glfw"
 )
 
 //Implements  RenderAPIContext & Renderer Interface in float32 Env
@@ -267,6 +269,29 @@ will need to have the precomputed offset already computed so that ref[0] is the 
 func (renderer *GLRenderer) BufferArrayData(vboID int, width int, offset int, ref []byte) error {
 	gl.BindBuffer(gl.ARRAY_BUFFER, renderer.VBO[vboID])
 	gl.BufferData(gl.ARRAY_BUFFER, width, gl.Ptr(&ref[offset]), gl.STATIC_DRAW)
+	return nil
+}
+
+/*
+BufferArrayFloat() - Allocates float buffer to gl vertex buffer object
+*/
+func (renderer *GLRenderer) BufferArrayFloat(vboID int, width int, offset int, ref []float32) error {
+	gl.BindBuffer(gl.ARRAY_BUFFER, renderer.VBO[vboID])
+	gl.BufferData(gl.ARRAY_BUFFER, width, gl.Ptr(&ref[offset]), gl.STATIC_DRAW)
+	return nil
+}
+
+func (r *GLRenderer) GetVBO(index int) uint32 {
+	return r.VBO[index]
+}
+
+func (r *GLRenderer) GetVAO(index int) uint32 {
+	return r.VAO[index]
+}
+
+func (renderer *GLRenderer) BufferArrayPointer(vboID int, width int, ref unsafe.Pointer) error {
+	gl.BindBuffer(gl.ARRAY_BUFFER, renderer.VBO[vboID])
+	gl.BufferData(gl.ARRAY_BUFFER, width, ref, gl.STATIC_DRAW)
 	return nil
 }
 

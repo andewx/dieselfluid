@@ -9,12 +9,13 @@ Invoked by the compute shader
 
 
 //Density Compute Shader
-kernel void compute_density(global particle *fluid,
+kernel void compute_density(global float3 *positions, global float3 *velocities, global float3 *forces, global float *densities, global float *pressures,
                             global intdata *sizes,
                             global floatdata *data,
                             global int *table,
                             global float3 *vecs){
   int x = get_global_id(0);
-  fluid[x].density = interp_density(fluid[x].position,data,fluid,table,sizes,vecs);
-  evaluate_pressure(x,fluid);
+  particles m_particles = {positions, velocities,forces, densities, pressures};
+  densities[x] = interp_density(positions[x],data, &m_particles,table,sizes,vecs);
+  evaluate_pressure(x, &m_particles);
 }

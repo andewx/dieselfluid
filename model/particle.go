@@ -1,69 +1,34 @@
 package model
 
-import "github.com/andewx/dieselfluid/math/vector"
-
-//Water Model
-const FLUID_MASS = 0.1
-const FLUID_DENSITY = 1.0
-const FLUID_STIFF = 6.1
-const FLUID_KERN_RAD = 0.2
-const FLUID_SOS = float32(1480.0)
-const FLUID_WATER = 0
-
-//SPH Fluid Incrompressible Water Particle with sized arrays
+//Fixed Particle structure array
 type Particle struct {
-	Pos  [3]float32
-	Vel  [3]float32
-	F    [3]float32
-	P    float32
-	Dens float32
+	Position [3]float32
+	Velocity [3]float32
+	Force    [3]float32
+	Density  float32
+	Hpa      float32
 }
 
-//-----------Implements SPH PARTICLE ------------------------//
-func (p Particle) Position() []float32 {
-	return vector.Cast(p.Pos)
-}
-func (p Particle) Velocity() []float32 {
-	return vector.Cast(p.Vel)
-}
-func (p Particle) Density() float32 {
-	return p.Dens
-}
-func (p Particle) Pressure() float32 {
-	return p.P
-}
-func (p Particle) Force() []float32 {
-	return vector.Cast(p.F)
+//Add vector b to a. Mutates a
+func add_float3(a [3]float32, b [3]float32) {
+	a[0] += b[0]
+	a[1] += b[1]
+	a[2] += b[2]
 }
 
-func (p Particle) AddForce(x []float32) {
-	p.F = vector.CastFixed(vector.Add(x, vector.Cast(p.F)))
+func (p Particle) AddPosition(x [3]float32) {
+	add_float3(p.Position, x)
 }
 
-func (p Particle) AddPosition(x []float32) {
-	p.Pos = vector.CastFixed(vector.Add(x, vector.Cast(p.Pos)))
+func (p Particle) AddForce(x [3]float32) {
+	add_float3(p.Force, x)
 }
 
-func (p Particle) AddVelocity(x []float32) {
-	p.Vel = vector.CastFixed(vector.Add(x, vector.Cast(p.Vel)))
+func (p Particle) AddVelocity(x [3]float32) {
+	add_float3(p.Velocity, x)
 }
 
-func (p Particle) SetPosition(x []float32) {
-	p.Pos = vector.CastFixed(x)
-}
-func (p Particle) SetVelocity(x []float32) {
-	p.Vel = vector.CastFixed(x)
-}
-func (p Particle) SetDensity(x float32) {
-	p.Dens = x
-}
-func (p Particle) SetPressure(x float32) {
-	p.P = x
-}
-func (p Particle) SetForce(x []float32) {
-	p.F = vector.CastFixed(x)
-}
-
-func (p Particle) GetParticle() Particle {
-	return p
+func (p Particle) Pressure(d0 float32, p0 float32) float32 {
+	p.Hpa = TaitEos(p.Density, d0, p0)
+	return p.Hpa
 }

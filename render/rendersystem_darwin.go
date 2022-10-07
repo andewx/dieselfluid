@@ -28,7 +28,7 @@ const (
 
 //RenderSystem provides ECS Render Mechanism
 type RenderSystem struct {
-	MyRenderer         defs.OGLRenderer
+	MyRenderer         *glr.GLRenderer
 	MeshEntities       []*defs.MeshEntity
 	Shaders            defs.ShadersMap
 	Graph              *scene.Scene
@@ -39,6 +39,9 @@ type RenderSystem struct {
 	Light              defs.Light
 	Time               time.Time
 	Angle              float32
+	num_vao            int
+	num_vbo            int
+	num_tex            int
 }
 
 //Gather() - Package customized initialization routine function. Gather is an
@@ -47,7 +50,7 @@ type RenderSystem struct {
 //type which is the RenderSystem and initializes with a GLTF scene file name
 //located in the "dslfluid.com/resources/" directory
 func Init(scn string) (RenderSystem, error) {
-	graph, err := scene.InitScene(common.ProjectRelativePath("data/"), scn)
+	graph, err := scene.InitScene("", scn)
 	mRenderer := glr.Renderer()
 	var MainRenderer RenderSystem
 
@@ -59,12 +62,12 @@ func Init(scn string) (RenderSystem, error) {
 	MainRenderer.MyRenderer = mRenderer
 	MainRenderer.Graph = &graph
 	MainRenderer.Shaders = shaderDict
-	MainRenderer.Light = defs.Light{[]float32{50, 50, 50, 1}, []float32{2.0, 2.0, 2.0}}
+	MainRenderer.Light = defs.Light{Pos: []float32{50, 50, 50, 1}, Color: []float32{2.0, 2.0, 2.0}}
 	MainRenderer.Time = time.Now()
 	return MainRenderer, err
 }
 
-func (r *RenderSystem) Init(width int, height int, name string) error {
+func (r *RenderSystem) Init(width int, height int, name string, particle_system bool) error {
 	r.MyRenderer.Setup(width, height, name)
 	bufs := r.Graph.GetBuffers()
 	meshes := r.Graph.GetMeshes()
@@ -78,10 +81,19 @@ func (r *RenderSystem) Init(width int, height int, name string) error {
 	r.Textures.TexID = make([]uint32, 0, 10)
 	r.Textures.TexUnit = make([]int32, 0, 10)
 
+	p := int(0)
+	if particle_system {
+		p = 1
+	}
+
 	//GPU Memory Arena Declaration
-	if err := r.MyRenderer.Layout(len(meshes), len(bufs), len(imgs)); err != nil {
+	if err := r.MyRenderer.Layout(len(meshes)+p, len(bufs)+p, len(imgs)); err != nil {
 		return err
 	}
+
+	r.num_tex = len(imgs)
+	r.num_vbo = len(bufs) + p
+	r.num_vao = len(meshes) + p
 	//Buffer Binding Point
 	for i := range bufs {
 		bufRef := bufs[i]
@@ -107,7 +119,7 @@ func (r *RenderSystem) Init(width int, height int, name string) error {
 	}
 
 	//Default cubemap - we can make more procedural soon
-	path := "../data/fluidmap.png"
+	path := common.ProjectRelativePath("data/meshes/textures/fluidmap.png")
 	if texID, err := r.MyRenderer.LoadEnvironment(path, 0); err != nil {
 		return err
 	} else {
@@ -120,8 +132,8 @@ func (r *RenderSystem) Init(width int, height int, name string) error {
 	for i := range mats {
 		mat, _ := r.Graph.GetMaterialIx(i)
 		name := mat.Name
-		newMaterial := defs.NewMaterial(name, defs.RGB{1.0, 1.0, 1.0})
-		newPBR := defs.NewPBRMaterial(defs.RGB{1.0, 1.0, 1.0}, 0.5, 0.5)
+		newMaterial := defs.NewMaterial(name, defs.RGB{R: 1.0, G: 1.0, B: 1.0})
+		newPBR := defs.NewPBRMaterial(defs.RGB{R: 1.0, G: 1.0, B: 1.0}, 0.5, 0.5)
 
 		baseIndex := mat.PbrMetallicRoughness.BaseColorTexture.Index
 		coord := mat.PbrMetallicRoughness.BaseColorTexture.TexCoord
@@ -291,6 +303,30 @@ func (r *RenderSystem) Meshes() error {
 	return nil
 }
 
+//Registers unique particle system (positions only)
+func (r *RenderSystem) RegisterParticleSystem(positions []float32, layout_location int) (uint32, error) {
+
+	//Registers particle system positions to a vertex array object
+	r.MyRenderer.BindVertexArray(r.num_vao - 1)
+	r.MyRenderer.BindArrayBuffer(r.num_vbo - 1)
+	r.MyRenderer.VertexArrayAttr(layout_location, 3, gl.FLOAT, 0)
+	r.MyRenderer.BufferArrayFloat(r.num_vbo-1, len(positions)*3*4, 0, positions)
+	r.MyRenderer.BindVertexArray(-1)
+	return r.MyRenderer.GetVBO(r.num_vbo - 1), nil
+}
+
+//Get opengl buffer location id
+func (r *RenderSystem) GetParticleBufferId() uint32 {
+	return r.MyRenderer.GetVBO(r.num_vbo - 1)
+}
+
+func (r *RenderSystem) UpdateParticleSystem(positions []float32) {
+	r.MyRenderer.BindVertexArray(r.num_vao - 1)
+	r.MyRenderer.BindArrayBuffer(r.num_vbo - 1)
+	r.MyRenderer.BufferArrayFloat(r.num_vbo-1, len(positions)*3*4, 0, positions)
+	r.MyRenderer.BindVertexArray(-1)
+}
+
 func (r *RenderSystem) CompileLink() error {
 	r.Shaders.VertexShaderPaths = make(map[string]string, MIN_PARAM_SIZE)
 	r.Shaders.FragmentShaderPaths = make(map[string]string, MIN_PARAM_SIZE)
@@ -300,8 +336,8 @@ func (r *RenderSystem) CompileLink() error {
 	r.Shaders.ShaderUniforms = make(map[string]int32, MIN_PARAM_SIZE)
 	r.Shaders.ProgramLinks = make(map[uint32]uint32, MIN_PARAM_SIZE)
 
-	r.Shaders.VertexShaderPaths["default"] = common.ProjectRelativePath("data/shaders/material.vert")
-	r.Shaders.FragmentShaderPaths["default"] = common.ProjectRelativePath("data/shaders/material.frag")
+	r.Shaders.VertexShaderPaths["default"] = common.ProjectRelativePath("data/shaders/glsl/render/material/material.vert")
+	r.Shaders.FragmentShaderPaths["default"] = common.ProjectRelativePath("data/shaders/glsl/render/material/material.frag")
 
 	//----------Uniforms ------------------------------//
 	r.Shaders.ShaderUniforms["mvp"] = 0
@@ -448,7 +484,7 @@ func (r *RenderSystem) Add(e ecs.BasicEntity, mesh defs.MeshComponent, i int) []
 }
 
 //Run() RenderSystem Runtime
-func (r *RenderSystem) Run() error {
+func (r *RenderSystem) Run(message chan string) error {
 
 	if r.MyRenderer == nil {
 		return fmt.Errorf("Run()- MyRenderer not available\n")
@@ -459,6 +495,13 @@ func (r *RenderSystem) Run() error {
 	}
 
 	for !r.MyRenderer.ShouldClose() {
+		m := <-message
+		if m == "QUIT" {
+			return nil
+		}
+		if m != "PROCEED" {
+			return fmt.Errorf("GPU Closed")
+		}
 		r.MyRenderer.Draw(r.MeshEntities, &r.Shaders, r.Materials, r.Textures.TexIDMap["sky"])
 		r.MyRenderer.SwapBuffers()
 		glfw.PollEvents()

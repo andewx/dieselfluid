@@ -3,12 +3,12 @@ package sph
 import (
 	"github.com/andewx/dieselfluid/geom"
 	"github.com/andewx/dieselfluid/geom/grid"
+	"github.com/andewx/dieselfluid/geom/mesh"
 	"github.com/andewx/dieselfluid/kernel"
 	"github.com/andewx/dieselfluid/math/vector"
 	"github.com/andewx/dieselfluid/model"
 	"github.com/andewx/dieselfluid/model/field"
 	"github.com/andewx/dieselfluid/sampler/lsh"
-	"math"
 )
 
 const (
@@ -34,7 +34,7 @@ so that N = n3*n3*n3 and the kernel smoothing lengthing is taken to be the the c
 which is defaulted to 1.0. So that h = (||s||/(N3)). To ensure that the GPU shader is well formed n3 must
 be a multiple of the local gpu group size which is 4. So n3 = 4 * X.
 */
-func Init(scl float32, origin vector.Vec, colliders []geom.Collider, n3 int, pci bool) SPH {
+func Init(scl float32, origin vector.Vec, colliders []mesh.Mesh, n3 int, pci bool) SPH {
 
 	//Build The Kernel Grid Structure using a cubic dimension of the particles
 	scale := vector.Vec{scl, scl, scl}
@@ -46,7 +46,7 @@ func Init(scl float32, origin vector.Vec, colliders []geom.Collider, n3 int, pci
 	core := SPH{}
 
 	//Instantiates and allocates the fielded particle lists which includes the collider implicit particle fields
-	particles := make([]model.Particle, num)
+	particles := model.NewParticleArray(num, 0)
 	sampler := lsh.Allocate(num, 255, 8, particles)
 	core.field = field.InitSPH(particles, sampler, kern, num)
 	core.particles = num
@@ -64,8 +64,8 @@ func Init(scl float32, origin vector.Vec, colliders []geom.Collider, n3 int, pci
 }
 
 //Get the field particles list, note that boundary particles are appended
-func (p SPH) Particles() []model.Particle {
-	return p.field.Particles()
+func (p SPH) Particles() model.ParticleField {
+	return p.field.Particles
 }
 
 func (p SPH) Field() *field.SPHField {
@@ -112,15 +112,10 @@ func (p SPH) DensityAll() {
 
 //Iterates over density field and calculates the particle pressures using tait EOS mapping
 func (p SPH) PressureAll() int {
-	retVal := 0                           //SPH VALID
-	standard_pressure := float32(1013.25) //1013.25 when workimg with air/particle medium
+	retVal := 0 //SPH VALID
 	for i := 0; i < p.particles; i++ {
-		psi := p.field.TaitEOS(p.Particles()[i].Dens, standard_pressure) //hpa
-		p.field.Particles()[i].SetPressure(psi)
-		if math.IsNaN(float64(psi)) {
-			retVal = -1
-			p.field.Particles()[i].SetPressure(standard_pressure)
-		}
+		particle := p.field.Particles.Get(i)
+		particle.Pressure(p.field.Particles.D0(), 0.0)
 	}
 	return retVal
 }
@@ -129,14 +124,16 @@ func (p SPH) PressureAll() int {
 //And maps the force to the particle force fields
 func (p SPH) ViscousAll() {
 	for i := 0; i < p.particles; i++ {
-		p.field.Particles()[i].AddForce(vector.Scale(p.field.LaplacianForce(i, p.field.GetTensorFields()["velocity"]), p.mu))
+		particle := p.field.Particles.Get(i)
+		particle.AddForce(vector.CastFixed(vector.Scale(p.field.LaplacianForce(i, p.field.GetTensorFields()["velocity"]), p.mu)))
 	}
 }
 
 //External add an external force to all particles
 func (p SPH) ExternalAll(force vector.Vec) {
 	for i := 0; i < p.particles; i++ {
-		p.field.Particles()[i].AddForce(force)
+		particle := p.field.Particles.Get(i)
+		particle.AddForce(vector.CastFixed(force))
 	}
 }
 
@@ -148,12 +145,14 @@ func (p SPH) Update() {
 
 	//Calculate Velocities Update Position / Clear Force To Gravity only
 	for i := 0; i < p.particles; i++ {
-		a := vector.Scale(p.field.Particles()[i].Force(), m)
-		p.field.Particles()[i].AddVelocity(vector.Scale(a, float32(ts)))
-		p.field.Particles()[i].AddPosition(vector.Scale(p.field.Particles()[i].Velocity(), float32(ts))) //Apply Velocity
-		p.field.Particles()[i].SetForce(vector.Vec{0, -9.81 * p.field.Mass(), 0})
-		if vector.Mag(p.field.Particles()[i].Velocity()) > p.maxVel {
-			p.maxVel = vector.Mag(p.field.Particles()[i].Velocity())
+		particle := p.field.Particles.Get(i)
+
+		a := vector.Scale(particle.Force[:], m)
+		particle.AddVelocity(vector.CastFixed(vector.Scale(a, float32(ts))))
+		particle.AddPosition(vector.CastFixed(vector.Scale(particle.Velocity[:], float32(ts)))) //Apply Velocity
+		particle.Force = ([3]float32{0, -9.81 * p.field.Mass(), 0})
+		if vector.Mag(particle.Velocity[:]) > p.maxVel {
+			p.maxVel = vector.Mag(particle.Velocity[:])
 		}
 	}
 }
@@ -181,14 +180,15 @@ func (p SPH) pcidelta() float32 {
 	d1 := float32(0.0)
 	d2 := vector.Vec{0, 0, 0}
 	for i := 0; i < sample_sph.particles; i++ {
-		point := sample_sph.field.Particles()[i].Position()
-		dist := vector.Mag(point) * vector.Mag(point)
+		particle := sample_sph.field.Particles.Get(i)
+		point := particle.Position
+		dist := vector.Mag(point[:]) * vector.Mag(point[:])
 		h0 := sample_sph.field.GetKernelLength()
 		if dist < h0*h0 {
-			dist = vector.Mag(point)
+			dist = vector.Mag(point[:])
 			dir := vector.Vec{0, 0, 0}
 			if dist > 0.0 {
-				vector.Scale(point, dist)
+				vector.Scale(point[:], dist)
 			}
 			gradW := sample_sph.field.Kernel().Grad(dist, dir)
 			d2 = d2.Add(gradW)
