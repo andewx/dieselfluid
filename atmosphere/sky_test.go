@@ -3,6 +3,7 @@ package atmosphere
 import (
 	"strconv"
 	"testing"
+
 	"github.com/andewx/dieselfluid/common"
 )
 
@@ -13,7 +14,7 @@ func TestPNGCreate(t *testing.T) {
 	for i := 36; i < 48; i++ {
 		filename := base + strconv.FormatInt(int64(i), 10) + ".jpg"
 		mSky.UpdatePosition(365 / 48)
-		mSky.CreateTexture(512, 512, true, common.ProjectRelativePath("etc/"+filename)
+		mSky.CreateTexture(512, 512, true, common.ProjectRelativePath("etc/"+filename))
 	}
 }
 

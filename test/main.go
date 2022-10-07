@@ -2,23 +2,19 @@ package test
 
 //Main Testing Package Scene Construction and Initialization
 
-import "github.com/andewx/dieselfluid/model/sph"
-import "github.com/andewx/dieselfluid/model/field"
-import "github.com/andewx/dieselfluid/sphmethod/wcsph"
-import V "github.com/andewx/dieselfluid/math/mgl"
-import G "github.com/andewx/dieselfluid/geom/mesh"
+import (
+	"github.com/andewx/dieselfluid/model/field"
+	"github.com/andewx/dieselfluid/model/sph"
+	"github.com/andewx/dieselfluid/solver/wcsph"
+)
 
 type MainTest struct {
-	Mesh  G.Mesh
-	Fluid sph.SPHCore
+	Fluid sph.SPH
 	WCSPH wcsph.WCSPH
 	Field field.SPHField
 }
 
-func Init() {
+func Init() *MainTest {
 	appMain := MainTest{}
-}
-
-func Run() {
-
+	return &appMain
 }

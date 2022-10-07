@@ -1,14 +1,17 @@
 package pcisph
 
-import "testing"
-import "github.com/jgillich/go-opencl/cl"
-import "github.com/andewx/dieselfluid/compute/gpu"
-import "github.com/andewx/dieselfluid/math/vector"
-import "github.com/andewx/dieselfluid/common"
-import "github.com/andewx/dieselfluid/model/sph"
-import "io/ioutil"
-import "fmt"
-import "log"
+import (
+	"fmt"
+	"io/ioutil"
+	"log"
+	"testing"
+
+	"github.com/andewx/dieselfluid/common"
+	"github.com/andewx/dieselfluid/compute/gpu"
+	"github.com/andewx/dieselfluid/math/vector"
+	"github.com/andewx/dieselfluid/model/sph"
+	"github.com/andewx/go-opencl/cl"
+)
 
 /*OpenCL State Must Remain*/
 func TestOpenCompute(t *testing.T) {
