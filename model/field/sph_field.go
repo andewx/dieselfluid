@@ -70,18 +70,12 @@ func (p SPHField) GetFields() map[string]Field {
 	return p.fields
 }
 
-func (p SPHField) BoundaryParticles(colliders []mesh.Mesh) {
+func (p SPHField) BoundaryParticles(colliders []*mesh.Mesh) {
 	//Make the boundary Particles
 	if colliders != nil {
 		for i := 0; i < len(colliders); i++ {
-			colliderPositions := colliders[i].GenerateBoundaryParticles(1 / p.GetKernelLength())
-			boundary_particles := make([]float32, len(colliderPositions)*3) //positions only
-			for i := 0; i < len(colliderPositions); i++ {
-				x := i * 3
-				model.Float3_buffer_set(x, boundary_particles, colliderPositions[i])
-			}
-			//Append the implicit colliders
-			p.Particles.AddBoundaryParticles(boundary_particles)
+			colliderPositions := colliders[i].GenerateBoundaryParticles(1 / 0.95)
+			p.Particles.AddBoundaryParticles(colliderPositions)
 		}
 	}
 }
@@ -90,6 +84,7 @@ func (p SPHField) AlignWithGrid(mGrid grid.Grid) {
 	x := int(mGrid.DimXYZ[0])
 	y := int(mGrid.DimXYZ[1])
 	z := int(mGrid.DimXYZ[2])
+	pos := p.Particles.Positions()
 	for i := 0; i < x; i++ {
 		for j := 0; j < y; j++ {
 			for k := 0; k < z; k++ {
@@ -97,6 +92,12 @@ func (p SPHField) AlignWithGrid(mGrid grid.Grid) {
 				id := mGrid.Index(i, j, k)
 				particle := p.Particles.Get(id)
 				particle.Position = vector.CastFixed(nPos)
+				idx := id * 3
+				if idx+2 < len(pos) {
+					pos[idx] = particle.Position[0]
+					pos[idx+1] = particle.Position[1]
+					pos[idx+2] = particle.Position[2]
+				}
 			}
 		}
 	}

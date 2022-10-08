@@ -18,7 +18,7 @@ const (
 )
 
 type ComputeGPU struct {
-	desc    compute.Descriptor
+	desc    *compute.Descriptor
 	sources map[string]string
 	context *OpenCL
 	log     string
@@ -38,7 +38,7 @@ type OpenCL struct {
 	Queue   *cl.CommandQueue
 }
 
-func (p ComputeGPU) SetDescriptor(desc compute.Descriptor) {
+func (p ComputeGPU) SetDescriptor(desc *compute.Descriptor) {
 	p.desc = desc
 }
 
@@ -110,10 +110,11 @@ func InitOpenCL(opencl *OpenCL) *OpenCL {
 
 /*Go will release the referenced C pointer device objects so high level code
   must retrieve the context and pass down contextually to the GPU class */
-func New_ComputeGPU(mCompute *ComputeGPU, descriptor compute.Descriptor, context *OpenCL) *ComputeGPU {
+func New_ComputeGPU(mCompute *ComputeGPU, descriptor *compute.Descriptor, context *OpenCL) *ComputeGPU {
 	mCompute.desc = descriptor
 	mCompute.context = context
 	mCompute.log = ""
+	mCompute.sources = make(map[string]string, 10)
 	return mCompute
 }
 
@@ -190,7 +191,7 @@ func New_ComputeGPU(mCompute *ComputeGPU, descriptor compute.Descriptor, context
 	}
 */
 
-func (cp ComputeGPU) BuildProgram() error {
+func (cp ComputeGPU) BuildProgram(include_dir string) error {
 	var program *cl.Program
 	var err error
 
@@ -209,12 +210,17 @@ func (cp ComputeGPU) BuildProgram() error {
 
 	cp.log += "Sources Compiled\n"
 
-	if err := program.BuildProgram(nil, ""); err != nil {
-		fmt.Errorf("program.BuildProgram failed:\n %s", cp.log)
+	buildDevices := make([]*cl.Device, 1)
+	buildDevices[0] = cp.context.Device
+
+	options := "-cl-kernel-arg-info -I " + include_dir
+
+	if err := program.BuildProgram(buildDevices, options); err != nil {
+		return err
 	}
 	cp.log += "Build Successful\n"
 	cp.context.Program = program
-	return err
+	return nil
 }
 
 /* ----------------------------------------
@@ -250,7 +256,7 @@ func (cp ComputeGPU) Context() *OpenCL {
 /*Creates source from file*/
 func (cp ComputeGPU) AddSourceFile(filename string) error {
 	var kern_src string
-	kern_bytes, err := ioutil.ReadFile(common.ProjectRelativePath("data/shaders/") + filename)
+	kern_bytes, err := ioutil.ReadFile(filename)
 	if err != nil {
 		cp.log += "Unable to open file: " + filename + "please enure correct path used\n"
 		cp.log += "Kernel function was not registered"
@@ -270,6 +276,10 @@ func (cp ComputeGPU) AddSourceString(source string, key string) error {
 	return nil
 }
 
+func (cp ComputeGPU) Descriptor() compute.Descriptor {
+	return *cp.desc
+}
+
 /* -------------------------------------------
     GPU Contextual Commands - Execution Path
 ------------------------------------------- */
@@ -286,10 +296,10 @@ func (cp ComputeGPU) Queue(name string) error {
 }
 
 func (cp ComputeGPU) Set(d compute.Descriptor) {
-	cp.desc = d
+	cp.desc = &d
 }
 func (cp ComputeGPU) Get() compute.Descriptor {
-	return cp.desc
+	return *cp.desc
 }
 
 func (cp ComputeGPU) isregistered(name string) error {
@@ -358,7 +368,7 @@ func (cp ComputeGPU) PassIntBuffer(cpu_buffer []int, name string) error {
 	if err != nil {
 		return err
 	}
-	if _, err = cp.context.Queue.EnqueueWriteBuffer(cp.context.Buffers[name], true, 0, len(cpu_buffer), common.Ptr(cpu_buffer), nil); err != nil {
+	if _, err = cp.context.Queue.EnqueueWriteIntBuffer(cp.context.Buffers[name], true, 0, cpu_buffer, nil); err != nil {
 		log.Fatalf("EnqueueWriteBufferInt32 failed: %+v\n", err)
 	}
 	cp.log += "Passed Integer Buffer " + name + "\n"

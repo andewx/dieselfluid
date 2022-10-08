@@ -53,15 +53,17 @@ const (
 
 //OGLRenderer interface type
 type GLRenderer struct {
-	MVPMatrix  []float32
-	MVPMat     []float32
-	VAO        []uint32
-	Tex        []uint32
-	VBO        []uint32
-	ElementVBO []uint32
-	Indices    []uint16
-	Window     *glfw.Window
-	Camera     *camera.Camera
+	MVPMatrix         []float32
+	MVPMat            []float32
+	VAO               []uint32
+	Tex               []uint32
+	VBO               []uint32
+	ElementVBO        []uint32
+	Indices           []uint16
+	Window            *glfw.Window
+	Camera            *camera.Camera
+	HasParticleSystem bool
+	NumParticles      int32
 }
 
 //MouseState holds mouse state for GLFW polling
@@ -130,7 +132,7 @@ func InitOpenGL() error {
 	gl.Enable(gl.DEPTH)
 	gl.Enable(gl.BLEND)
 	gl.BlendFunc(gl.SRC_ALPHA, gl.ONE_MINUS_SRC_ALPHA)
-	gl.ClearColor(0.15, 0.15, 0.15, 1.0)
+	gl.ClearColor(0.85, 0.85, 0.85, 1.0)
 	return nil
 }
 
@@ -139,6 +141,8 @@ func Renderer() *GLRenderer {
 	mCamera := camera.NewCamera(vector.Vec{0, 0, 10})
 	mRenderer := new(GLRenderer)
 	mRenderer.Camera = &mCamera
+	mRenderer.HasParticleSystem = false
+	mRenderer.NumParticles = 0
 	return mRenderer
 }
 
@@ -151,10 +155,14 @@ func (renderer *GLRenderer) Setup(width int, height int, title string) error {
 	}
 
 	if renderer.Window, err = InitGLFW(width, height, title); err != nil {
-		return err
-	}
+		if err := gl.Init(); err != nil {
+			return err
+		}
+		renderer.Window, _ = InitGLFW(width, height, title)
+	} else {
 
-	InitOpenGL()
+		InitOpenGL()
+	}
 
 	aspect := float32(width) / float32(height)
 	renderer.MVPMat = make([]float32, 16)
@@ -211,15 +219,57 @@ func (renderer *GLRenderer) GetUniformLocation(program uint32, name string) (int
 	return loc, nil
 }
 
-func (renderer *GLRenderer) ShaderLog(programGLID uint32) {
-	var logLength = int32(1000)
+func (renderer *GLRenderer) ShaderLog(programGLID uint32, name string) {
+
+	gl.ValidateProgram(programGLID)
+
+	deleteStatus := int32(0)
+	linkStatus := int32(0)
+	validateStatus := int32(0)
+	logLength := int32(0)
+	activeAttr := int32(0)
+	activeMax := int32(0)
+	activeUniforms := int32(0)
+	attSh := int32(0)
+	activeUniformMax := int32(0)
+
+	gl.GetProgramiv(programGLID, gl.INFO_LOG_LENGTH, &logLength)
+	gl.GetProgramiv(programGLID, gl.DELETE_STATUS, &deleteStatus)
+	gl.GetProgramiv(programGLID, gl.LINK_STATUS, &linkStatus)
+	gl.GetProgramiv(programGLID, gl.VALIDATE_STATUS, &validateStatus)
+	gl.GetProgramiv(programGLID, gl.ATTACHED_SHADERS, &attSh)
+	gl.GetProgramiv(programGLID, gl.ACTIVE_ATTRIBUTES, &activeAttr)
+	gl.GetProgramiv(programGLID, gl.ACTIVE_ATTRIBUTE_MAX_LENGTH, &activeMax)
+	gl.GetProgramiv(programGLID, gl.ACTIVE_UNIFORMS, &activeUniforms)
+	gl.GetProgramiv(programGLID, gl.ACTIVE_UNIFORM_MAX_LENGTH, &activeUniformMax)
+
+	validateString := "Valid: Error\n"
+	deleteString := ""
+	linkString := "No Link"
+
+	if deleteStatus == gl.TRUE {
+		deleteString = "Flagged for deletion\n"
+	}
+	if validateStatus == gl.TRUE {
+		validateString = "Valid: Success\n"
+	}
+	if linkStatus == gl.TRUE {
+		linkString = "Link success\n"
+	}
+
+	info := "Shader: \n" + name + "\n" + validateString + deleteString + linkString
+	info += fmt.Sprintf("Attached shaders: %d\n", attSh)
+	info += fmt.Sprintf("Active Attributes: %d\n", activeAttr)
+	info += fmt.Sprintf("Attributes Max: %d\n", activeMax)
+	info += fmt.Sprintf("Active Uniforms: %d\n", activeUniforms)
+	info += fmt.Sprintf("Max Active Uniforms: %d\nProgram Log:\n", activeUniformMax)
+
+	fmt.Printf(info + "--------------\n")
+
 	log := strings.Repeat("\x00", int(logLength+1))
 	gl.GetProgramInfoLog(programGLID, logLength, nil, gl.Str(log))
 	fmt.Printf("%s", log)
-
-	active := int32(0)
-	gl.GetProgramiv(programGLID, gl.ACTIVE_UNIFORMS, &active)
-	fmt.Printf("SHADER UNIFORMS[%d]\n", active)
+	fmt.Printf("--------------\n")
 }
 
 /* Layout(num_vbo, num_tex)( error) - initializes as many VBOs and Textures as
@@ -239,10 +289,10 @@ func (renderer *GLRenderer) Layout(num_vao int, num_vbo int, num_tex int) error 
 	renderer.VBO = make([]uint32, num_vbo+1)
 	renderer.ElementVBO = make([]uint32, num_vao+1)
 
-	gl.GenVertexArrays(int32(num_vao), &renderer.VAO[0])
-	gl.GenTextures(int32(num_tex), &renderer.Tex[0])
-	gl.GenBuffers(int32(num_vbo), &renderer.VBO[0])
-	gl.GenBuffers(int32(num_vao), &renderer.ElementVBO[0])
+	gl.GenVertexArrays(int32(num_vao+1), &renderer.VAO[0])
+	gl.GenTextures(int32(num_tex+1), &renderer.Tex[0])
+	gl.GenBuffers(int32(num_vbo+1), &renderer.VBO[0])
+	gl.GenBuffers(int32(num_vao+1), &renderer.ElementVBO[0])
 
 	return nil
 }
@@ -268,7 +318,7 @@ will need to have the precomputed offset already computed so that ref[0] is the 
 */
 func (renderer *GLRenderer) BufferArrayData(vboID int, width int, offset int, ref []byte) error {
 	gl.BindBuffer(gl.ARRAY_BUFFER, renderer.VBO[vboID])
-	gl.BufferData(gl.ARRAY_BUFFER, width, gl.Ptr(&ref[offset]), gl.STATIC_DRAW)
+	gl.BufferData(gl.ARRAY_BUFFER, width, gl.Ptr(&ref[offset]), gl.DYNAMIC_DRAW)
 	return nil
 }
 
@@ -277,7 +327,16 @@ BufferArrayFloat() - Allocates float buffer to gl vertex buffer object
 */
 func (renderer *GLRenderer) BufferArrayFloat(vboID int, width int, offset int, ref []float32) error {
 	gl.BindBuffer(gl.ARRAY_BUFFER, renderer.VBO[vboID])
-	gl.BufferData(gl.ARRAY_BUFFER, width, gl.Ptr(&ref[offset]), gl.STATIC_DRAW)
+	gl.BufferData(gl.ARRAY_BUFFER, width, gl.Ptr(&ref[offset]), gl.DYNAMIC_DRAW)
+	return nil
+}
+
+/*
+BufferArrayFloat() - Allocates float buffer to gl vertex buffer object
+*/
+func (renderer *GLRenderer) BufferSubArrayFloat(vboID int, width int, offset int, ref []float32) error {
+	gl.BindBuffer(gl.ARRAY_BUFFER, renderer.VBO[vboID])
+	gl.BufferSubData(gl.ARRAY_BUFFER, 0, width, gl.Ptr(&ref[offset]))
 	return nil
 }
 
@@ -401,6 +460,7 @@ func (renderer *GLRenderer) Draw(mesh_entities []*defs.MeshEntity, shaders *defs
 	mglView := renderer.Camera.Update()
 	gl.Clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT)
 	gl.UseProgram(shaders.ProgramID["default"])
+	identity := []float32{1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1}
 
 	gl.UniformMatrix4fv(shaders.ShaderUniforms["mvp"], 1, false, &renderer.MVPMat[0])
 	gl.UniformMatrix4fv(shaders.ShaderUniforms["view"], 1, false, &mglView[0])
@@ -422,7 +482,17 @@ func (renderer *GLRenderer) Draw(mesh_entities []*defs.MeshEntity, shaders *defs
 		gl.DrawElements(gl.TRIANGLES, int32(myMesh.Mesh.IndiceComponent.IndexByteLength/BYTES_PER_SHORT), gl.UNSIGNED_SHORT, gl.PtrOffset(0))
 		gl.BindVertexArray(0)
 	}
+	if renderer.HasParticleSystem {
+		gl.UseProgram(shaders.ProgramID["particle"])
+		gl.PointSize(5.0)
+		gl.UniformMatrix4fv(shaders.ShaderUniforms["_model"], 1, false, &identity[0])
+		gl.UniformMatrix4fv(shaders.ShaderUniforms["_mvp"], 1, false, &renderer.MVPMat[0])
+		gl.UniformMatrix4fv(shaders.ShaderUniforms["_view"], 1, false, &mglView[0])
+		gl.BindVertexArray(renderer.VAO[len(renderer.VAO)-1])
+		gl.DrawArrays(gl.POINTS, 0, renderer.NumParticles)
+		gl.BindVertexArray(0)
 
+	}
 	gl.BindTexture(gl.TEXTURE_CUBE_MAP, 0)
 
 	return nil

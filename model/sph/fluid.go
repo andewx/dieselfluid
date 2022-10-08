@@ -34,7 +34,7 @@ so that N = n3*n3*n3 and the kernel smoothing lengthing is taken to be the the c
 which is defaulted to 1.0. So that h = (||s||/(N3)). To ensure that the GPU shader is well formed n3 must
 be a multiple of the local gpu group size which is 4. So n3 = 4 * X.
 */
-func Init(scl float32, origin vector.Vec, colliders []mesh.Mesh, n3 int, pci bool) SPH {
+func Init(scl float32, origin vector.Vec, colliders []*mesh.Mesh, n3 int, pci bool) SPH {
 
 	//Build The Kernel Grid Structure using a cubic dimension of the particles
 	scale := vector.Vec{scl, scl, scl}

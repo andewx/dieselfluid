@@ -5,9 +5,11 @@ import (
 	"math" //GoLang Entity Component System
 	"runtime"
 	"time"
+	"unsafe"
 
 	"github.com/EngoEngine/ecs"
 	"github.com/andewx/dieselfluid/common"
+	"github.com/andewx/dieselfluid/geom/mesh"
 	"github.com/andewx/dieselfluid/math/matrix"
 	"github.com/andewx/dieselfluid/math/vector"
 	"github.com/andewx/dieselfluid/render/defs"
@@ -18,7 +20,7 @@ import (
 )
 
 const (
-	MIN_PARAM_SIZE  = 10
+	MIN_PARAM_SIZE  = 20
 	BYTES_PER_FLOAT = 4
 	COORD_4         = 4
 	COORD_3         = 3
@@ -44,13 +46,27 @@ type RenderSystem struct {
 	num_tex            int
 }
 
+func byteSliceToFloat32Slice(src []byte) []float32 {
+	if len(src) == 0 {
+		return nil
+	}
+
+	l := len(src) / 4
+	ptr := unsafe.Pointer(&src[0])
+	// It is important to keep in mind that the Go garbage collector
+	// will not interact with this data, and that if src if freed,
+	// the behavior of any Go code using the slice is nondeterministic.
+	// Reference: https://github.com/golang/go/wiki/cgo#turning-c-arrays-into-go-slices
+	return (*[1 << 26]float32)((*[1 << 26]float32)(ptr))[:l:l]
+}
+
 //Gather() - Package customized initialization routine function. Gather is an
 //initialization like function moniker used package by package to initialize
 //a main package construct for API usage. Here Gather returns the main package
 //type which is the RenderSystem and initializes with a GLTF scene file name
 //located in the "dslfluid.com/resources/" directory
 func Init(scn string) (RenderSystem, error) {
-	graph, err := scene.InitScene("", scn)
+	graph, err := scene.InitScene(scn)
 	mRenderer := glr.Renderer()
 	var MainRenderer RenderSystem
 
@@ -105,7 +121,7 @@ func (r *RenderSystem) Init(width int, height int, name string, particle_system 
 		img, _ := r.Graph.GetImageIx(i)
 		if img.Uri != "" {
 			uri := img.Uri
-			path := "../data/" + uri
+			path := r.Graph.BaseURI + uri
 			fmt.Printf("Loaded Image URI: %s\n", uri)
 			if texID, err := r.MyRenderer.LoadTexture(path, i); err != nil {
 				return err
@@ -119,7 +135,7 @@ func (r *RenderSystem) Init(width int, height int, name string, particle_system 
 	}
 
 	//Default cubemap - we can make more procedural soon
-	path := common.ProjectRelativePath("data/meshes/textures/fluidmap.png")
+	path := common.ProjectRelativePath("data/textures/fluidmap.png")
 	if texID, err := r.MyRenderer.LoadEnvironment(path, 0); err != nil {
 		return err
 	} else {
@@ -307,23 +323,24 @@ func (r *RenderSystem) Meshes() error {
 func (r *RenderSystem) RegisterParticleSystem(positions []float32, layout_location int) (uint32, error) {
 
 	//Registers particle system positions to a vertex array object
-	r.MyRenderer.BindVertexArray(r.num_vao - 1)
-	r.MyRenderer.BindArrayBuffer(r.num_vbo - 1)
+
+	r.MyRenderer.BindVertexArray(r.num_vao)
+	r.MyRenderer.BindArrayBuffer(r.num_vbo)
 	r.MyRenderer.VertexArrayAttr(layout_location, 3, gl.FLOAT, 0)
-	r.MyRenderer.BufferArrayFloat(r.num_vbo-1, len(positions)*3*4, 0, positions)
-	r.MyRenderer.BindVertexArray(-1)
-	return r.MyRenderer.GetVBO(r.num_vbo - 1), nil
+	r.MyRenderer.BufferArrayFloat(r.num_vbo, len(positions)*4, 0, positions)
+	r.MyRenderer.BindVertexArray(0)
+	return r.MyRenderer.GetVBO(r.num_vbo), nil
 }
 
 //Get opengl buffer location id
 func (r *RenderSystem) GetParticleBufferId() uint32 {
-	return r.MyRenderer.GetVBO(r.num_vbo - 1)
+	return r.MyRenderer.GetVBO(r.num_vbo)
 }
 
 func (r *RenderSystem) UpdateParticleSystem(positions []float32) {
-	r.MyRenderer.BindVertexArray(r.num_vao - 1)
-	r.MyRenderer.BindArrayBuffer(r.num_vbo - 1)
-	r.MyRenderer.BufferArrayFloat(r.num_vbo-1, len(positions)*3*4, 0, positions)
+	r.MyRenderer.BindVertexArray(r.num_vao)
+	r.MyRenderer.BindArrayBuffer(r.num_vbo)
+	r.MyRenderer.BufferSubArrayFloat(r.num_vbo, len(positions)*4, 0, positions)
 	r.MyRenderer.BindVertexArray(-1)
 }
 
@@ -338,6 +355,8 @@ func (r *RenderSystem) CompileLink() error {
 
 	r.Shaders.VertexShaderPaths["default"] = common.ProjectRelativePath("data/shaders/glsl/render/material/material.vert")
 	r.Shaders.FragmentShaderPaths["default"] = common.ProjectRelativePath("data/shaders/glsl/render/material/material.frag")
+	r.Shaders.VertexShaderPaths["particle"] = common.ProjectRelativePath("data/shaders/glsl/render/particle_fluid/particle_fluid.vert")
+	r.Shaders.FragmentShaderPaths["particle"] = common.ProjectRelativePath("data/shaders/glsl/render/particle_fluid/particle_fluid.frag")
 
 	//----------Uniforms ------------------------------//
 	r.Shaders.ShaderUniforms["mvp"] = 0
@@ -353,6 +372,9 @@ func (r *RenderSystem) CompileLink() error {
 	r.Shaders.ShaderUniforms["metallness"] = 0
 	r.Shaders.ShaderUniforms["roughness"] = 0
 	r.Shaders.ShaderUniforms["normMat"] = 0
+	r.Shaders.ShaderUniforms["_mvp"] = 0
+	r.Shaders.ShaderUniforms["_view"] = 0
+	r.Shaders.ShaderUniforms["_model"] = 0
 
 	//----------Compile Shader Targets-----------------//
 	for key, value := range r.Shaders.VertexShaderPaths {
@@ -371,6 +393,7 @@ func (r *RenderSystem) CompileLink() error {
 		}
 	}
 
+	//-------------Links programs by vertex/frag shaders sharing same key, enters program id into same key entry-----//
 	for key, value := range r.Shaders.FragShaderID {
 		var err error
 		fID := value
@@ -385,10 +408,19 @@ func (r *RenderSystem) CompileLink() error {
 
 	//-------------Assign default shader uniform locations-------------------//
 	for key := range r.Shaders.ShaderUniforms {
-		id := r.Shaders.ProgramID["default"]
-		uniform_id, _ := r.MyRenderer.GetUniformLocation(id, key)
-		r.Shaders.ShaderUniforms[key] = uniform_id
+		if key != "_mvp" && key != "_view" && key != "_model" {
+			id := r.Shaders.ProgramID["default"]
+			uniform_id, _ := r.MyRenderer.GetUniformLocation(id, key)
+			r.Shaders.ShaderUniforms[key] = uniform_id
+		} else {
+			id := r.Shaders.ProgramID["particle"]
+			uniform_id, _ := r.MyRenderer.GetUniformLocation(id, key)
+			r.Shaders.ShaderUniforms[key] = uniform_id
+		}
 	}
+
+	r.MyRenderer.ShaderLog(r.Shaders.ProgramID["default"], "Default glsl")
+	r.MyRenderer.ShaderLog(r.Shaders.ProgramID["particle"], "particle glsl")
 
 	gl.UseProgram(r.Shaders.ProgramID["default"])
 
@@ -483,6 +515,23 @@ func (r *RenderSystem) Add(e ecs.BasicEntity, mesh defs.MeshComponent, i int) []
 	return ret
 }
 
+func (r *RenderSystem) GetColliderMeshes() []*mesh.Mesh {
+
+	colliderMeshes := make([]*mesh.Mesh, len(r.MeshEntities))
+	for i, meshy := range r.MeshEntities {
+		vertices := byteSliceToFloat32Slice(meshy.Mesh.Vertices)
+		tris := make([]vector.Vec, len(vertices)/3)
+		for i := 0; i < len(tris); i++ {
+			x := i * 3
+
+			tris[i] = vector.Vec{vertices[x], vertices[x+1], vertices[x+2]}
+		}
+		m_mesh := mesh.InitMesh(tris, []float32{0, 0, 0})
+		colliderMeshes[i] = &m_mesh
+	}
+	return colliderMeshes
+}
+
 //Run() RenderSystem Runtime
 func (r *RenderSystem) Run(message chan string) error {
 
@@ -494,18 +543,27 @@ func (r *RenderSystem) Run(message chan string) error {
 		return err
 	}
 
+	frame_timer := 0.0
 	for !r.MyRenderer.ShouldClose() {
-		m := <-message
-		if m == "QUIT" {
-			return nil
-		}
-		if m != "PROCEED" {
-			return fmt.Errorf("GPU Closed")
-		}
 		r.MyRenderer.Draw(r.MeshEntities, &r.Shaders, r.Materials, r.Textures.TexIDMap["sky"])
 		r.MyRenderer.SwapBuffers()
 		glfw.PollEvents()
-		r.Update(time.Now().Sub(r.Time).Seconds())
+		seconds := time.Now().Sub(r.Time).Seconds()
+		r.Update(seconds)
+
+		frame_timer += seconds
+		if frame_timer < 0.1 {
+			select { //Non blocking send
+			case message <- "ACK":
+			default:
+			}
+		} else {
+			frame_timer = 0.0
+			select { //Non blocking send
+			case message <- "REFRESH_PARTICLES":
+			default:
+			}
+		}
 	}
 
 	runtime.UnlockOSThread()

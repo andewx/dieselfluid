@@ -52,7 +52,7 @@ func ijk2Vec(i int, j int, k int) V.Vec {
 func (g Grid) Index(i int, j int, k int) int {
 	i_w := int(g.DimXYZ[0])
 	j_w := int(g.DimXYZ[1])
-	return (k * i_w * j_w) + (k * i_w) + i
+	return (k + i_w*(i*j_w+j))
 }
 
 //Assigns Position Based on [i][j][k] Grid Position element

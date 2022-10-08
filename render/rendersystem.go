@@ -108,7 +108,7 @@ func (r *RenderSystem) Init(width int, height int, name string, particle_system 
 		img, _ := r.Graph.GetImageIx(i)
 		if img.Uri != "" {
 			uri := img.Uri
-			path := "../data/" + uri
+			path := r.Graph.BaseURI + uri
 			fmt.Printf("Loaded Image URI: %s\n", uri)
 			if texID, err := r.MyRenderer.LoadTexture(path, i); err != nil {
 				return err
