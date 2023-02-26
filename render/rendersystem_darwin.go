@@ -12,6 +12,7 @@ import (
 	"github.com/andewx/dieselfluid/geom/mesh"
 	"github.com/andewx/dieselfluid/math/matrix"
 	"github.com/andewx/dieselfluid/math/vector"
+	"github.com/andewx/dieselfluid/model/sph"
 	"github.com/andewx/dieselfluid/render/defs"
 	"github.com/andewx/dieselfluid/render/glr"
 	"github.com/andewx/dieselfluid/render/scene"
@@ -44,6 +45,8 @@ type RenderSystem struct {
 	num_vao            int
 	num_vbo            int
 	num_tex            int
+	positions          []float32
+	positions_id       int
 }
 
 func byteSliceToFloat32Slice(src []byte) []float32 {
@@ -65,22 +68,20 @@ func byteSliceToFloat32Slice(src []byte) []float32 {
 //a main package construct for API usage. Here Gather returns the main package
 //type which is the RenderSystem and initializes with a GLTF scene file name
 //located in the "dslfluid.com/resources/" directory
-func Init(scn string) (RenderSystem, error) {
+func Init(scn string) (*RenderSystem, error) {
 	graph, err := scene.InitScene(scn)
-	mRenderer := glr.Renderer()
-	var MainRenderer RenderSystem
-
 	if err != nil {
-		return MainRenderer, err
+		fmt.Printf("Error importing file:%s\n%v", scn, err)
 	}
+	mRenderer := glr.Renderer()
 	shaderDict := defs.ShadersMap{}
-	MainRenderer = RenderSystem{}
+	MainRenderer := RenderSystem{}
 	MainRenderer.MyRenderer = mRenderer
 	MainRenderer.Graph = &graph
 	MainRenderer.Shaders = shaderDict
-	MainRenderer.Light = defs.Light{Pos: []float32{50, 50, 50, 1}, Color: []float32{2.0, 2.0, 2.0}}
+	MainRenderer.Light = defs.Light{Pos: []float32{50, 50, 50, 1}, Color: []float32{1.0, 1.0, 1.0}}
 	MainRenderer.Time = time.Now()
-	return MainRenderer, err
+	return &MainRenderer, err
 }
 
 func (r *RenderSystem) Init(width int, height int, name string, particle_system bool) error {
@@ -103,11 +104,11 @@ func (r *RenderSystem) Init(width int, height int, name string, particle_system 
 	}
 
 	//GPU Memory Arena Declaration
-	if err := r.MyRenderer.Layout(len(meshes)+p, len(bufs)+p, len(imgs)); err != nil {
+	if err := r.MyRenderer.Layout(len(meshes)+p, len(bufs)+p, len(imgs)+1); err != nil {
 		return err
 	}
 
-	r.num_tex = len(imgs)
+	r.num_tex = len(imgs) + 1
 	r.num_vbo = len(bufs) + p
 	r.num_vao = len(meshes) + p
 	//Buffer Binding Point
@@ -320,16 +321,17 @@ func (r *RenderSystem) Meshes() error {
 }
 
 //Registers unique particle system (positions only)
-func (r *RenderSystem) RegisterParticleSystem(positions []float32, layout_location int) (uint32, error) {
+func (r *RenderSystem) RegisterParticleSystem(positions []float32, layout_location int) (uint32, uint32) {
 
 	//Registers particle system positions to a vertex array object
-
+	r.positions = positions
+	r.positions_id = r.num_vbo
 	r.MyRenderer.BindVertexArray(r.num_vao)
 	r.MyRenderer.BindArrayBuffer(r.num_vbo)
 	r.MyRenderer.VertexArrayAttr(layout_location, 3, gl.FLOAT, 0)
 	r.MyRenderer.BufferArrayFloat(r.num_vbo, len(positions)*4, 0, positions)
 	r.MyRenderer.BindVertexArray(0)
-	return r.MyRenderer.GetVBO(r.num_vbo), nil
+	return r.MyRenderer.GetVBO(r.num_vbo), r.MyRenderer.GetVAO(r.num_vao)
 }
 
 //Get opengl buffer location id
@@ -424,7 +426,7 @@ func (r *RenderSystem) CompileLink() error {
 
 	gl.UseProgram(r.Shaders.ProgramID["default"])
 
-	baseColor := []float32{1.0, 1.0, 1.0, 1.0}
+	baseColor := []float32{0, 0, 0, 1.0}
 	gl.Uniform4fv(r.Shaders.ShaderUniforms["baseColor"], 1, &baseColor[0])
 	gl.Uniform1f(r.Shaders.ShaderUniforms["fresnel_rim"], 0.05)
 	gl.Uniform3fv(r.Shaders.ShaderUniforms["lightColor"], 1, &r.Light.Color[0])
@@ -439,6 +441,13 @@ func (r *RenderSystem) CompileLink() error {
 			material.ColorTexture.GLTEXUNIT = 0
 			gl.Uniform1i(r.Shaders.ShaderUniforms["colorTex"], 0)
 			r.MyRenderer.SetActiveTexture(r.Textures.TexIDMap["colorTex"], 0)
+		}
+		if material.NormalTexture.Status == INITIALIZED {
+			material.ColorTexture.GLID = r.Textures.TexIDMap["normTex"]
+			material.ColorTexture.Key = "normTex"
+			material.ColorTexture.GLTEXUNIT = 1
+			gl.Uniform1i(r.Shaders.ShaderUniforms["normTex"], 1)
+			r.MyRenderer.SetActiveTexture(r.Textures.TexIDMap["normTex"], 1)
 		}
 		if material.NormalTexture.Status == INITIALIZED {
 			material.ColorTexture.GLID = r.Textures.TexIDMap["normTex"]
@@ -533,7 +542,7 @@ func (r *RenderSystem) GetColliderMeshes() []*mesh.Mesh {
 }
 
 //Run() RenderSystem Runtime
-func (r *RenderSystem) Run(message chan string) error {
+func (r *RenderSystem) Run(message chan string, particles *sph.SPH) error {
 
 	if r.MyRenderer == nil {
 		return fmt.Errorf("Run()- MyRenderer not available\n")
@@ -542,28 +551,14 @@ func (r *RenderSystem) Run(message chan string) error {
 	if err := r.MyRenderer.Status(); err != nil {
 		return err
 	}
-
-	frame_timer := 0.0
 	for !r.MyRenderer.ShouldClose() {
 		r.MyRenderer.Draw(r.MeshEntities, &r.Shaders, r.Materials, r.Textures.TexIDMap["sky"])
 		r.MyRenderer.SwapBuffers()
 		glfw.PollEvents()
 		seconds := time.Now().Sub(r.Time).Seconds()
 		r.Update(seconds)
+		r.UpdateParticleSystem(particles.Field().Particles.Positions())
 
-		frame_timer += seconds
-		if frame_timer < 0.1 {
-			select { //Non blocking send
-			case message <- "ACK":
-			default:
-			}
-		} else {
-			frame_timer = 0.0
-			select { //Non blocking send
-			case message <- "REFRESH_PARTICLES":
-			default:
-			}
-		}
 	}
 
 	runtime.UnlockOSThread()

@@ -1,0 +1,154 @@
+{
+    "asset" : {
+        "generator" : "Khronos glTF Blender I/O v1.6.16",
+        "version" : "2.0"
+    },
+    "extensionsUsed" : [
+        "KHR_materials_clearcoat"
+    ],
+    "scene" : 0,
+    "scenes" : [
+        {
+            "name" : "Scene",
+            "nodes" : [
+                0
+            ]
+        }
+    ],
+    "nodes" : [
+        {
+            "mesh" : 0,
+            "name" : "Cube"
+        }
+    ],
+    "materials" : [
+        {
+            "doubleSided" : true,
+            "extensions" : {
+                "KHR_materials_clearcoat" : {
+                    "clearcoatFactor" : 0.594059407711029,
+                    "clearcoatRoughnessFactor" : 0.06465346366167068
+                }
+            },
+            "name" : "ceramic",
+            "normalTexture" : {
+                "index" : 0
+            },
+            "pbrMetallicRoughness" : {
+                "baseColorTexture" : {
+                    "index" : 1
+                },
+                "metallicFactor" : 0.9514849543571472,
+                "roughnessFactor" : 0.17936837553977966
+            }
+        }
+    ],
+    "meshes" : [
+        {
+            "name" : "Cube",
+            "primitives" : [
+                {
+                    "attributes" : {
+                        "POSITION" : 0,
+                        "NORMAL" : 1,
+                        "TEXCOORD_0" : 2
+                    },
+                    "indices" : 3,
+                    "material" : 0
+                }
+            ]
+        }
+    ],
+    "textures" : [
+        {
+            "sampler" : 0,
+            "source" : 0
+        },
+        {
+            "sampler" : 0,
+            "source" : 1
+        }
+    ],
+    "images" : [
+        {
+            "mimeType" : "image/png",
+            "name" : "normTex",
+            "uri" : "TilesCeramicHerringbone002_NRM_1K.png"
+        },
+        {
+            "mimeType" : "image/png",
+            "name" : "colorTex",
+            "uri" : "TilesCeramicHerringbone002_COL_1K.png"
+        }
+    ],
+    "accessors" : [
+        {
+            "bufferView" : 0,
+            "componentType" : 5126,
+            "count" : 1094,
+            "max" : [
+                2.7601869106292725,
+                -0.3255895972251892,
+                2.7601869106292725
+            ],
+            "min" : [
+                -2.7601869106292725,
+                -2.3513150215148926,
+                -2.7601869106292725
+            ],
+            "type" : "VEC3"
+        },
+        {
+            "bufferView" : 1,
+            "componentType" : 5126,
+            "count" : 1094,
+            "type" : "VEC3"
+        },
+        {
+            "bufferView" : 2,
+            "componentType" : 5126,
+            "count" : 1094,
+            "type" : "VEC2"
+        },
+        {
+            "bufferView" : 3,
+            "componentType" : 5123,
+            "count" : 5760,
+            "type" : "SCALAR"
+        }
+    ],
+    "bufferViews" : [
+        {
+            "buffer" : 0,
+            "byteLength" : 13128,
+            "byteOffset" : 0
+        },
+        {
+            "buffer" : 0,
+            "byteLength" : 13128,
+            "byteOffset" : 13128
+        },
+        {
+            "buffer" : 0,
+            "byteLength" : 8752,
+            "byteOffset" : 26256
+        },
+        {
+            "buffer" : 0,
+            "byteLength" : 11520,
+            "byteOffset" : 35008
+        }
+    ],
+    "samplers" : [
+        {
+            "magFilter" : 9729,
+            "minFilter" : 9987
+        }
+    ],
+    "buffers" : [
+        {
+            "byteLength" : 46528,
+            "uri" : "ceramic_bowl.bin"
+        }
+    ]
+}

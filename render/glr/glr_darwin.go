@@ -132,7 +132,7 @@ func InitOpenGL() error {
 	gl.Enable(gl.DEPTH)
 	gl.Enable(gl.BLEND)
 	gl.BlendFunc(gl.SRC_ALPHA, gl.ONE_MINUS_SRC_ALPHA)
-	gl.ClearColor(0.85, 0.85, 0.85, 1.0)
+	gl.ClearColor(0.15, 0.15, 0.15, 1.0)
 	return nil
 }
 
@@ -155,14 +155,10 @@ func (renderer *GLRenderer) Setup(width int, height int, title string) error {
 	}
 
 	if renderer.Window, err = InitGLFW(width, height, title); err != nil {
-		if err := gl.Init(); err != nil {
-			return err
-		}
-		renderer.Window, _ = InitGLFW(width, height, title)
-	} else {
-
-		InitOpenGL()
+		return err
 	}
+
+	InitOpenGL()
 
 	aspect := float32(width) / float32(height)
 	renderer.MVPMat = make([]float32, 16)
@@ -484,7 +480,7 @@ func (renderer *GLRenderer) Draw(mesh_entities []*defs.MeshEntity, shaders *defs
 	}
 	if renderer.HasParticleSystem {
 		gl.UseProgram(shaders.ProgramID["particle"])
-		gl.PointSize(5.0)
+		gl.PointSize(25.0)
 		gl.UniformMatrix4fv(shaders.ShaderUniforms["_model"], 1, false, &identity[0])
 		gl.UniformMatrix4fv(shaders.ShaderUniforms["_mvp"], 1, false, &renderer.MVPMat[0])
 		gl.UniformMatrix4fv(shaders.ShaderUniforms["_view"], 1, false, &mglView[0])

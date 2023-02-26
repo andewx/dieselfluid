@@ -17,7 +17,7 @@ type TensorField interface {
 //DENSITY
 
 type DensityField struct {
-	Ref model.ParticleField
+	Ref model.ParticleArray
 }
 
 func (p DensityField) Value(i int) float32 {
@@ -33,23 +33,24 @@ func (p DensityField) Set(x float32, i int) {
 //PRESSURE
 
 type PressureField struct {
-	Ref model.ParticleField
+	Ref model.ParticleArray
 }
 
 func (p PressureField) Value(i int) float32 {
-	return p.Ref.Get(i).Pressure(model.FLUID_DENSITY, 0.0)
+	particle := p.Ref.Get(i)
+	return particle.Pressure(model.FLUID_DENSITY, 0.0)
 }
 
 func (p PressureField) Set(x float32, i int) {
 	particle := p.Ref.Get(i)
-	particle.Hpa = x
+	particle.Press = x
 	p.Ref.Set(i, particle)
 }
 
 //FORCE
 
 type ForceField struct {
-	Ref model.ParticleField
+	Ref model.ParticleArray
 }
 
 func (p ForceField) Value(i int) []float32 {
@@ -66,7 +67,7 @@ func (p ForceField) Set(x []float32, i int) {
 }
 
 type VelocityField struct {
-	Ref model.ParticleField
+	Ref model.ParticleArray
 }
 
 func (p VelocityField) Value(i int) []float32 {

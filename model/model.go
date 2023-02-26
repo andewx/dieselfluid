@@ -38,7 +38,7 @@ const SPH_EOS_INF = -1
 
 //Water Model
 const FLUID_MASS = 0.1
-const FLUID_DENSITY = 1.0
+const FLUID_DENSITY = 87.0
 const FLUID_STIFF = 6.1
 const FLUID_KERN_RAD = 0.2
 const FLUID_SOS = float32(1480.0)
@@ -60,9 +60,10 @@ type ParticleField interface {
 	Set(x int, particle Particle)
 	Get(x int) Particle
 	D0() float32
-	AddBoundaryParticles([]float32)
+	AddBoundaryParticles([]float32) []float32
 	N() int
 	Total() int //Total particles
+	SetReferenceDensity(d float32)
 }
 
 //EOSGamma() - Full Tait Equation of State for Water like incrompressible fluids where
@@ -91,15 +92,16 @@ func EosGamma(x float32, c0 float32, d0 float32, gamma float32, p0 float32) floa
 func TaitEos(x float32, d0 float32, p0 float32) float32 {
 	g := float32(7.16)
 	w := float32(2.15)
-	y := (w/g)*float32(math.Pow(float64(x/d0), float64(g))-1) + p0
-	if y <= p0 {
-		return p0
+
+	if x <= d0 {
+		x = d0
 	}
+	y := (w/g)*float32(math.Pow(float64(x/d0), float64(g))-1) + p0
 	return y
 }
 
 //Set the a buffer size >= 3 with the size 3 b float32 array
-func Float3_buffer_set(x int, buffer []float32, b [3]float32) {
+func Float3_buffer_set(x int, buffer []float32, b *[3]float32) {
 
 	if x+2 > len(buffer) {
 		return
@@ -113,7 +115,7 @@ func Float3_buffer_set(x int, buffer []float32, b [3]float32) {
 	buffer[x+2] = b[2]
 }
 
-func Float3_set(x int, a [3]float32, buffer []float32) {
+func Float3_set(x int, a *[3]float32, buffer []float32) {
 
 	if x+2 > len(buffer) {
 		return

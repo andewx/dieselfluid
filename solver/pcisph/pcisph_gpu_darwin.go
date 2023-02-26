@@ -6,7 +6,6 @@ import (
 	"github.com/andewx/dieselfluid/common"
 	"github.com/andewx/dieselfluid/compute/gpu"
 	"github.com/andewx/dieselfluid/model/sph"
-	"github.com/go-gl/gl/v2.1/gl"
 )
 
 const LOCAL_GROUP_SIZE = 4
@@ -63,17 +62,18 @@ func New_GPUPredictorCorrector(computeGPU *gpu.ComputeGPU, sph sph.SPH, opencl *
 	hash_buffer := field.GetSampler().GetData1D()
 	random_project_vectors := field.GetSampler().GetVectors()
 	temp_bytes := 2*3*4 + 4
+	parray := sph.Particles()
 
-	mGPU.gpu_compute.RegisterBuffer(sph.Particles().Total()*3*4, 0, "positions")
-	mGPU.gpu_compute.RegisterBuffer(sph.Particles().N()*3*4, 0, "velocities")
-	mGPU.gpu_compute.RegisterBuffer(sph.Particles().N()*3*4, 0, "forces")
-	mGPU.gpu_compute.RegisterBuffer(sph.Particles().N()*4, 0, "densities")
-	mGPU.gpu_compute.RegisterBuffer(sph.Particles().N()*4, 0, "pressures")
+	mGPU.gpu_compute.RegisterBuffer(parray.Total()*3*4, 0, "positions")
+	mGPU.gpu_compute.RegisterBuffer(parray.N()*3*4, 0, "velocities")
+	mGPU.gpu_compute.RegisterBuffer(parray.N()*3*4, 0, "forces")
+	mGPU.gpu_compute.RegisterBuffer(parray.N()*4, 0, "densities")
+	mGPU.gpu_compute.RegisterBuffer(parray.N()*4, 0, "pressures")
 	mGPU.gpu_compute.RegisterBuffer(len(ints)*4, 0, "sizes")
 	mGPU.gpu_compute.RegisterBuffer(len(floats)*4, 0, "floats")
 	mGPU.gpu_compute.RegisterBuffer(len(hash_buffer)*4, 0, "sampler")
 	mGPU.gpu_compute.RegisterBuffer(len(random_project_vectors)*4, 0, "vecs")
-	mGPU.gpu_compute.RegisterBuffer(sph.Particles().N()*7*4, 0, "temps")
+	mGPU.gpu_compute.RegisterBuffer(parray.N()*7*4, 0, "temps")
 
 	/*Commit buffers*/
 	var buffer_err error
@@ -246,52 +246,41 @@ func (m GPUPredictorCorrector) MemoryRequirements() string {
 }
 
 /* Executes one full compute cycle for PCI PSH compute shader which uses 2 shader kernels */
-func (m GPUPredictorCorrector) Run(message chan string) error {
+func (m GPUPredictorCorrector) Run(message *chan string) error {
 	mContext := m.gpu_compute.Context()
 	done := false
-	for done != true {
+	for !done {
 		m.system.CFL()
 		m.system.CacheIncr()
 		description := m.gpu_compute.Descriptor()
 		if _, err := mContext.Queue.EnqueueNDRangeKernel(mContext.Kernels["compute_density"], nil, description.Work, description.Local, nil); err != nil {
-			return fmt.Errorf("EnqueueNDRangeKernel failed: %+v\n", err)
+			fmt.Printf("Enqueue Compute desnity failed: %s\n", err.Error())
+			return err
 		}
 
 		if err := mContext.Queue.Finish(); err != nil {
-			return fmt.Errorf("Finish failed: %+v\n", err)
+			fmt.Printf("Finish failed: %s\n", err.Error())
+			return err
 		}
 
 		if _, err := mContext.Queue.EnqueueNDRangeKernel(mContext.Kernels["predict_correct"], nil, m.gpu_compute.Descriptor().Work, m.gpu_compute.Descriptor().Local, nil); err != nil {
-			return fmt.Errorf("EnqueueNDRangeKernel failed: %+v\n", err)
+			fmt.Printf("Enqueue Predict Correct failed: %s\n", err.Error())
+			return err
 		}
 
 		if err := mContext.Queue.Finish(); err != nil {
-			return fmt.Errorf("Finish failed: %+v\n", err)
+			fmt.Printf("Finish PC failed failed: %s\n", err.Error())
+			return err
 		}
 
-		msg := <-message
-		if msg == "QUIT" {
-			fmt.Printf("Executed Kernels\n")
-			return nil
+		positions := m.system.Field().Particles.Positions()
+		_, err := mContext.Queue.EnqueueReadBufferFloat32(mContext.Buffers["positions"], true, 0, positions, nil)
+		if err == nil {
+			*message <- "CL_REFRESH"
+		} else {
+			fmt.Printf("Readbuffer error\n")
 		}
-
-		select {
-		case msg := <-message:
-			if msg == "QUIT" {
-				done = true
-			}
-			if msg == "REFRESH_PARTICLES" {
-				positions := m.system.Field().Particles.Positions()
-				mContext.Queue.EnqueueReadBufferFloat32(mContext.Buffers["positions"], false, 0, positions, nil)
-				gl.BindBuffer(gl.ARRAY_BUFFER, m.gl_position_buffer)
-				gl.BufferSubData(gl.ARRAY_BUFFER, 0, len(positions)*4, gl.Ptr(positions))
-				gl.BindBuffer(gl.ARRAY_BUFFER, 0)
-			}
-		default:
-			done = false
-		}
-
+		done = false
 	}
-
 	return nil
 }

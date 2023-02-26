@@ -15,7 +15,9 @@ kernel void compute_density(global float3 *positions, global float3 *velocities,
                             global int *table,
                             global float3 *vecs){
   int x = get_global_id(0);
-  particles m_particles = {positions, velocities,forces, densities, pressures};
+  particles m_particles = {&positions[x], &velocities[x],&forces[x], &densities[x], &pressures[x]};
   densities[x] = interp_density(positions[x],data, &m_particles,table,sizes,vecs);
+  viscosity_force(x, data, &m_particles,table,sizes,vecs);
+  external_force(x,data, &m_particles);
   evaluate_pressure(x, &m_particles);
 }

@@ -58,37 +58,21 @@ func (g *Mesh) Collision(P vector.Vec, V vector.Vec, dt float64, r float32) (vec
 
 //Generates particles in world space given the world space triangles
 func (g *Mesh) GenerateBoundaryParticles(density float32) []float32 {
-	d_step := 1 / density
 
-	num_particles := int(density*density) * len(g.Vertexes) / 3
+	num_particles := len(g.Vertexes)
 
 	particle_list := make([]float32, num_particles*3)
-	particle_index := 0
 
-	for index := 0; index < len(g.Vertexes)-3; index++ {
-
-		tri := T.InitTriangle(g.Vertexes[index], g.Vertexes[index+1], g.Vertexes[index+2])
-		v0 := vector.Sub(*tri.Verts[0], *tri.Verts[1])
-		v1 := vector.Sub(*tri.Verts[0], *tri.Verts[2])
-
-		for u := float32(0); u < float32(1.0); u += d_step {
-			for v := float32(0); v < float32(1.0); v += d_step {
-				s0 := vector.Scale(v0, u)
-				s1 := vector.Scale(v1, v)
-				p0 := vector.Add(s0, s1)
-				if particle_index < len(particle_list)-3 {
-					particle_list[particle_index] = p0[0]
-					particle_list[particle_index+1] = p0[1]
-					particle_list[particle_index+2] = p0[2]
-				} else {
-					break
-				}
-			}
+	for index := 0; index < len(g.Vertexes); index++ {
+		p0 := g.Vertexes[index]
+		x := index * 3
+		if x < len(particle_list)-3 {
+			particle_list[x] = p0[0]
+			particle_list[x+1] = p0[1]
+			particle_list[x+2] = p0[2]
 		}
 	}
-
 	return particle_list
-
 }
 
 func (g *Mesh) PrintNormals() {

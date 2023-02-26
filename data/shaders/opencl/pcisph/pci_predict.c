@@ -14,12 +14,12 @@ kernel void predict_correct(global float3 *positions, global float3 *velocities,
                             global temp_particle* temp){
   int x = get_global_id(0);
   float ts = cfl(data->maxVel);
-  particles m_particles = {positions, velocities,forces, densities, pressures};
-  viscosity_force(x, data, &m_particles,table,sizes,vecs);
-  external_force(x,data, &m_particles);
+  particles m_particles = {&positions[x], &velocities[x],&forces[x], &densities[x], &pressures[x]};
   pressure_solve(x,temp,data, &m_particles,table,sizes,vecs);
   velocities[x] = velocities[x] + ts* forces[x]/data->mass;
   positions[x] = positions[x] + ts*velocities[x];
+  pressures[x] = 0.0;
+  forces[x]  = 0.0;
   //CFL Condtions
   if (length(velocities[x]) > data->maxVel){
     data->maxVel = length(velocities[x]);

@@ -6,14 +6,16 @@ import (
 	"github.com/andewx/dieselfluid/kernel"
 	"github.com/andewx/dieselfluid/math/vector"
 	"github.com/andewx/dieselfluid/model"
-	"github.com/andewx/dieselfluid/sampler"
+	"github.com/andewx/dieselfluid/sampler/lsh"
 )
+
+const SAMPLES = 150
 
 //Manage SPH Field and Particle Field interactions
 type SPHField struct {
 	kern          kernel.Kernel
-	smplr         sampler.Sampler
-	Particles     model.ParticleField
+	smplr         *lsh.HashSampler
+	Particles     model.ParticleArray
 	fields        map[string]Field
 	tensor_fields map[string]TensorField
 	densities     DensityField
@@ -24,7 +26,7 @@ type SPHField struct {
 	vort          Field
 }
 
-func InitSPH(parts model.ParticleField, ref sampler.Sampler, kern kernel.Kernel, basis int) SPHField {
+func InitSPH(parts model.ParticleArray, ref *lsh.HashSampler, kern kernel.Kernel, basis int) SPHField {
 	mySPH := SPHField{}
 	mySPH.kern = kern
 	mySPH.smplr = ref
@@ -46,44 +48,46 @@ func InitSPH(parts model.ParticleField, ref sampler.Sampler, kern kernel.Kernel,
 	return mySPH
 }
 
-func (p SPHField) Field() *SPHField {
-	return &p
+func (p *SPHField) Field() *SPHField {
+	return p
 }
 
-func (p SPHField) Mass() float32 {
+func (p *SPHField) Mass() float32 {
 	return p.Particles.Mass()
 }
 
-func (p SPHField) D0() float32 {
+func (p *SPHField) D0() float32 {
 	return p.Particles.D0()
 }
 
-func (p SPHField) Kernel() kernel.Kernel {
+func (p *SPHField) Kernel() kernel.Kernel {
 	return p.kern
 }
 
-func (p SPHField) GetKernelLength() float32 {
+func (p *SPHField) GetKernelLength() float32 {
 	return p.kern.H0()
 }
 
-func (p SPHField) GetFields() map[string]Field {
+func (p *SPHField) GetFields() map[string]Field {
 	return p.fields
 }
 
-func (p SPHField) BoundaryParticles(colliders []*mesh.Mesh) {
+func (p *SPHField) BoundaryParticles(colliders []*mesh.Mesh) []float32 {
 	//Make the boundary Particles
+	var colliderPositions []float32
 	if colliders != nil {
 		for i := 0; i < len(colliders); i++ {
-			colliderPositions := colliders[i].GenerateBoundaryParticles(1 / 0.95)
+			colliderPositions = colliders[i].GenerateBoundaryParticles(2.0)
 			p.Particles.AddBoundaryParticles(colliderPositions)
 		}
 	}
+	return colliderPositions
 }
 
-func (p SPHField) AlignWithGrid(mGrid grid.Grid) {
-	x := int(mGrid.DimXYZ[0])
-	y := int(mGrid.DimXYZ[1])
-	z := int(mGrid.DimXYZ[2])
+func (p *SPHField) AlignWithGrid(mGrid grid.Grid) {
+	x := int(mGrid.Div[0])
+	y := int(mGrid.Div[1])
+	z := int(mGrid.Div[2])
 	pos := p.Particles.Positions()
 	for i := 0; i < x; i++ {
 		for j := 0; j < y; j++ {
@@ -103,26 +107,25 @@ func (p SPHField) AlignWithGrid(mGrid grid.Grid) {
 	}
 }
 
-func (p SPHField) GetTensorFields() map[string]TensorField {
+func (p *SPHField) GetTensorFields() map[string]TensorField {
 	return p.tensor_fields
 }
 
 //Sampler Nearest Neighbors Update
-func (p SPHField) NN() {
+func (p *SPHField) NN() {
 	p.smplr.UpdateSampler()
 }
 
-func (p SPHField) GetSampler() sampler.Sampler {
+func (p *SPHField) GetSampler() *lsh.HashSampler {
 	return p.smplr
 }
 
 //nterpolates a scalar field given a position giving a continuous field
-func (p SPHField) Interpolate(position []float32, field Field) float32 {
-	sampleList := p.smplr.GetRegionalSamples(p.smplr.Hash(vector.CastFixed(position)), 1)
+func (p *SPHField) Interpolate(position []float32, field Field) float32 {
+	sampleList := p.smplr.GetSamplesFromPosition(position)
 	sum := float32(0.0)
 	mass := p.Mass()
 	for i := 0; i < len(sampleList); i++ {
-
 		part := p.Particles.Get(sampleList[i])
 		dist := vector.Dist(position, part.Position[:])
 		weight := mass / part.Density * p.kern.F(dist)
@@ -131,45 +134,50 @@ func (p SPHField) Interpolate(position []float32, field Field) float32 {
 	return sum
 }
 
-//Interpolates a scalar field given a position giving a continuous field
-func (p SPHField) InterpolateVectors(position []float32, field TensorField) []float32 {
-	sampleList := p.smplr.GetRegionalSamples(p.smplr.Hash(vector.CastFixed(position)), 2)
-	sum := vector.Vec{0, 0, 0}
-	mass := p.Mass()
-	for i := 0; i < len(sampleList); i++ {
-		part := p.Particles.Get(sampleList[i])
-		dist := vector.Dist(part.Position[:], position)
-		weight := mass / part.Density * p.kern.F(dist)
-		vector.Add(sum, vector.Scale(field.Value(sampleList[i]), weight))
-	}
-	return sum
-}
-
-//Density -- Computes density field for SPH Field
-func (p SPHField) Density(i int) {
-	sampleList := p.smplr.GetSamples(i)
-	weight := p.kern.W0()
-	particle := p.Particles.Get(i)
+func (p *SPHField) DensityF(pos vector.Vec, positions []float32) float32 {
+	sampleList := p.smplr.GetSamplesFromPosition(pos)
+	density := p.kern.W0()
+	mass := p.Field().Mass()
 
 	for j := 0; j < len(sampleList); j++ {
 		pIndex := sampleList[j]
-		if i != pIndex {
+		if pIndex < p.Particles.Total() {
+
 			particle_j := p.Particles.Get(pIndex)
-			dist := vector.Dist(particle.Position[:], particle_j.Position[:]) //Change to dist
-			weight += p.kern.F(dist)
+			dist := vector.Dist(pos, particle_j.Position[:]) //Change to dist
+			density += mass * p.kern.F(dist)
 		}
 	}
-	particle.Density = weight
+	return density
+}
+
+//Density -- Computes density field for SPH Field - Boundary particle contribute to infinite density
+func (p *SPHField) Density(i int) {
+	sampleList := p.smplr.GetSamples(i)
+	density := float32(0)
+	particle := p.Particles.Get(i)
+	lenSample := len(sampleList)
+	mass := p.Field().Mass()
+	for j := 0; j < lenSample; j++ {
+		pIndex := sampleList[j]
+		if i != pIndex && pIndex < p.Particles.Total() {
+
+			particle_j := p.Particles.Get(pIndex)
+			dist := vector.Dist(particle.Position[:], particle_j.Position[:]) //Change to dist
+			density += mass * p.kern.F(dist)
+		}
+	}
+	particle.Density = density
 	p.Particles.Set(i, particle)
 }
 
 //Computes gradient vector at particle i given a scalar field
-func (p SPHField) Gradient(i int, field Field) []float32 {
+func (p *SPHField) Gradient(i int, field Field) []float32 {
 
 	samples := p.smplr.GetSamples(i)
 	F := float32(0.0)
 	mass := p.Particles.Mass()
-	accumGrad := vector.Vec{}
+	accumGrad := vector.Vec{0, 0, 0}
 	particle := p.Particles.Get(i)
 	dens := particle.Density
 
@@ -192,7 +200,7 @@ func (p SPHField) Gradient(i int, field Field) []float32 {
 }
 
 //Computes the Divergence of a tensor field
-func (p SPHField) Div(i int, field TensorField) float32 {
+func (p *SPHField) Div(i int, field TensorField) float32 {
 
 	particle := p.Particles.Get(i)
 	samples := p.smplr.GetSamples(i)
@@ -219,7 +227,7 @@ func (p SPHField) Div(i int, field TensorField) float32 {
 }
 
 //Computes a laplacian value at the particle i for the given scalar field
-func (p SPHField) Laplacian(i int, field Field) float32 {
+func (p *SPHField) Laplacian(i int, field Field) float32 {
 
 	particle := p.Particles.Get(i)
 	samples := p.smplr.GetSamples(i)
@@ -240,7 +248,7 @@ func (p SPHField) Laplacian(i int, field Field) float32 {
 }
 
 //Computes a laplacian value at the particle i for the given scalar field
-func (p SPHField) LaplacianForce(i int, field TensorField) []float32 {
+func (p *SPHField) LaplacianForce(i int, field TensorField) []float32 {
 
 	particle := p.Particles.Get(i)
 	samples := p.smplr.GetSamples(i)
@@ -261,11 +269,11 @@ func (p SPHField) LaplacianForce(i int, field TensorField) []float32 {
 }
 
 //Curl computes non-symmetric curl
-func (p SPHField) Curl(i int, field TensorField) []float32 {
+func (p *SPHField) Curl(i int, field TensorField) []float32 {
 
 	particle := p.Particles.Get(i)
 	samples := p.smplr.GetSamples(i)
-	curl_vec := vector.Vec{}
+	curl_vec := vector.Vec{0, 0, 0}
 	mass := p.Mass()
 
 	//For all particle neighbors

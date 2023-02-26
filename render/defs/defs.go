@@ -170,6 +170,7 @@ type Material struct {
 	NormalTexture    *Texture
 	OcclusionTexture *Texture
 	EmmissiveTexture *Texture
+	MetallicTexutre  *Texture
 
 	MetallicRoughMaterial *PBRMaterial
 
@@ -218,7 +219,7 @@ func NewPBRMaterial(color RGB, metalness float32, roughness float32) *PBRMateria
 }
 
 func NewMaterial(name string, base RGB) *Material {
-	mat := Material{0, 0, 0, base, base, base, nil, nil, nil, nil, nil, name}
+	mat := Material{0, 0, 0, base, base, base, nil, nil, nil, nil, nil, nil, name}
 	return &mat
 }
 

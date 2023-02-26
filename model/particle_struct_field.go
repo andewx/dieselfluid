@@ -15,12 +15,12 @@ type ParticleStructField struct {
 	ReferenceDensity float32
 }
 
-func NewParticleStructField(n int) ParticleStructField {
+func NewParticleStructField(n int, kernel float32, density float32, mass float32) ParticleStructField {
 	particles := ParticleStructField{}
 	particles.Particles = make([]Particle, n)
 	particles.n_particles = n
-	particles.mass = FLUID_MASS
-	particles.ReferenceDensity = FLUID_DENSITY
+	particles.mass = mass
+	particles.ReferenceDensity = density * mass
 	return particles
 }
 
@@ -68,7 +68,7 @@ func (p ParticleStructField) Pressures() []float32 {
 	fmt.Printf("Warning duplicating particle field property of length  %d KB", int(p.n_particles*3*4/1024))
 	alloc := make([]float32, p.n_particles)
 	for index, particle := range p.Particles {
-		alloc[index] = particle.Hpa
+		alloc[index] = particle.Press
 	}
 	return alloc
 }

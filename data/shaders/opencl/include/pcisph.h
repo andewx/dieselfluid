@@ -264,7 +264,7 @@ float clamp_greater(float x, float a){
 }
 
 void pressure_solve(int x , global temp_particle *temp, global floatdata *fluid_data, particles *m_particles, global int* table, global intdata *sizes, global float3* rands){
-  float d0 = 1000.0;
+  float d0 = 100.0;
   int iters = 0;
   int max_iters = 5;
   float error = m_particles->pressures[x]-d0;
@@ -279,7 +279,7 @@ void pressure_solve(int x , global temp_particle *temp, global floatdata *fluid_
 
     //Compute Pressure from the density error
     float density = particle_density(x, fluid_data, m_particles,table,sizes,rands);
-    float error = density - d0;
+    float error = d0-density;
     float pressure = fluid_data->delta * error;
     m_particles->pressures[x] += pressure;
     m_particles->densities[x] = density;

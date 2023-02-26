@@ -14,30 +14,26 @@ const LOAD_FACTOR = float32(1.5)
 const THREAD_ERROR = 404
 const THREAD_RUN_SAMPLER = 60
 const THREAD_WAIT_SAMPLER = 61
+const SAMPLES = 100
 
-//Constructs locality sensitive hash using random projection vectors in the euclidian plane
+//Constructs locality sensitive hash using random projection vectors in the euclidian plane using 8 bit hash
 type HashSampler struct {
 	Table       [][]int
 	Buckets     int
 	Size        int
-	Indexes     []int
 	HashVectors []vector.Vec
 	HashBits    int
-	Particles   model.ParticleField
+	particles   *model.ParticleArray
 }
 
 //Dynamically allocates the hash table
-func Allocate(num_particles int, buckets int, hash_bits int, particles model.ParticleField) HashSampler {
+func Allocate(num_particles int, buckets int, hash_bits int, particles *model.ParticleArray) *HashSampler {
 	sampler := HashSampler{}
 	time_seed := time.Now()
 	factor := int(float32(num_particles/buckets) * LOAD_FACTOR)
 	sampler.Table = make([][]int, buckets)
 	r := rand.New(rand.NewSource(int64(time_seed.Second())))
 	sampler.HashVectors = make([]vector.Vec, hash_bits)
-	//Allocation All tables
-	for i := 0; i < buckets; i++ {
-		sampler.Table[i] = make([]int, factor)
-	}
 
 	//Allocate all Hash Vectors
 	for i := 0; i < hash_bits; i++ {
@@ -47,8 +43,9 @@ func Allocate(num_particles int, buckets int, hash_bits int, particles model.Par
 	sampler.Buckets = buckets
 	sampler.HashBits = hash_bits
 	sampler.Size = factor
-	sampler.Particles = particles
-	return sampler
+	sampler.particles = particles
+
+	return &sampler
 }
 
 func sgn(val float32) int {
@@ -69,11 +66,14 @@ func (s HashSampler) GetData() [][]int {
 	return s.Table
 }
 
+//Constructs finite sampler
 func (s HashSampler) GetData1D() []int {
 	nArray := make([]int, s.Buckets*s.Size)
 	for i := 0; i < s.Buckets; i++ {
 		for j := 0; j < s.Size; j++ {
-			nArray[i*s.Size+j] = s.Table[i][j]
+			if s.Table[i] != nil && j < len(s.Table[i]) {
+				nArray[i*s.Size+j] = s.Table[i][j]
+			}
 		}
 	}
 	return nArray
@@ -107,63 +107,85 @@ func (s HashSampler) Hash(pos [3]float32) int {
 		hash = hash << 1
 		hash += sgn(vector.Dot(p, r))
 	}
-	return hash % s.Buckets
+	return hash % (s.Buckets)
 }
 
 func (s HashSampler) Insert(hash int, particle int) {
-	if s.Indexes[hash] < s.Size {
-		s.Table[hash][s.Indexes[hash]] = particle
-		s.Indexes[hash]++
+	if s.Table[hash] == nil {
+		s.Table[hash] = make([]int, 0)
 	}
+	s.Table[hash] = append(s.Table[hash], particle)
 }
 
 func (s HashSampler) Reset() {
 	for i := 0; i < s.Buckets; i++ {
-		s.Indexes[i] = 0
+		s.Table[i] = nil
 	}
 }
 
 func (s HashSampler) UpdateSampler() {
 	s.Reset()
 
-	for i := 0; i < s.Particles.N(); i++ {
-		particle := s.Particles.Get(i)
+	for i := 0; i < s.particles.Total(); i++ {
+		particle := s.particles.Get(i)
 		s.Insert(s.Hash(particle.Position), i)
 	}
 }
 
+//FINDS # SAMPLES
 func (s HashSampler) GetSamples(x int) []int {
-	particle := s.Particles.Get(x)
-	return s.Table[s.Hash(particle.Position)]
-}
+	particle := s.particles.Get(x)
+	samples := make([]int, SAMPLES)
+	num := int(0)
+	index := s.Hash(particle.Position)
 
-func (s HashSampler) GetRegionalSamples(hash int, width int) []int {
-	w2 := int(width / 2)
-	start := hash - w2
-	if start < 0 {
-		start = s.Buckets - (w2 - hash)
-	}
-	samples := make([]int, s.Size*width)
-	for i := 0; i < width; i++ {
-		index := (start + i) % s.Buckets
-		samples = append(samples, s.Table[index][:]...)
+	for num < SAMPLES {
+		if index > len(s.Table) {
+			index = 0
+		}
+		table := s.Table[index]
+		if table == nil {
+			index++
+			index = index % s.Buckets
+		} else {
+			for j := 0; j < len(table) && num < SAMPLES; j++ {
+				samples[num] = table[j]
+				num++
+			}
+		}
 	}
 	return samples
 }
 
-func (s HashSampler) Run(status chan int) {
-	done := false
-	synced := true
+func (s HashSampler) GetSamplesFromPosition(pos []float32) []int {
+	samples := make([]int, SAMPLES)
+	num := int(0)
+	index := s.Hash(vector.CastFixed(pos))
 
-	for !done {
-		if synced {
-			s.UpdateSampler()
-			synced = false
-			status <- THREAD_WAIT_SAMPLER //Thread has been synced
-			nStatus := <-status           //Wait on the next status update
-			if nStatus == THREAD_RUN_SAMPLER {
-				synced = true
+	for num < SAMPLES {
+		if index > len(s.Table) {
+			index = 0
+		}
+		table := s.Table[index]
+		if table == nil {
+			index++
+			index = index % s.Buckets
+		} else {
+			for j := 0; j < len(table) && num < SAMPLES; j++ {
+				samples[num] = table[j]
+				num++
 			}
+		}
+	}
+	return samples
+}
+
+func (s HashSampler) Run(status chan string) {
+	done := false
+	for !done {
+		st := <-status
+		if st == "SAMPLER_UPDATE" {
+			s.UpdateSampler()
 		}
 	}
 }
