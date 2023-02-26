@@ -1,29 +1,38 @@
 package render
 
 import (
-	"github.com/andewx/dieselfluid/common"
+	"fmt"
 	"runtime"
 	"testing"
+
+	"github.com/andewx/dieselfluid/common"
 )
 
 func TestGraphics(t *testing.T) {
 
 	runtime.LockOSThread()
-	Sys, _ := Init("MaterialSphere.gltf")
+	Render, err := Init(common.ProjectRelativePath("data/meshes/materialbowl/ceramic_bowl.gltf"))
 
-	if err := Sys.Init(1024, 720, common.ProjectRelativePath("render")); err != nil {
+	if err != nil {
+		fmt.Printf("Unable to initiate scene graph\n%v\n", err)
+		t.Errorf("Failed")
+		return
+	}
+
+	if err := Render.Init(1024, 720, common.ProjectRelativePath("render"), false); err != nil {
 		t.Error(err)
 	}
 
-	if err := Sys.CompileLink(); err != nil {
+	if err := Render.CompileLink(); err != nil {
 		t.Error(err)
 	}
 
-	if err := Sys.Meshes(); err != nil {
+	if err := Render.Meshes(); err != nil {
 		t.Error(err)
 	}
+	message := make(chan string)
 
-	if err := Sys.Run(); err != nil {
+	if err := Render.Run(message, nil); err != nil {
 		t.Error(err)
 	}
 }

@@ -537,7 +537,8 @@ type Texture struct {
 	Name       string      `json:"name,omitempty"`
 
 	// The index of the sampler used by this texture. When undefined, a sampler with repeat wrapping and auto filtering should be used.
-	Sampler Sampler `json:"sampler,omitempty"`
+	Sampler int `json:"sampler,omitempty"`
+	SamplerProperties Sampler
 
 	// The index of the image used by this texture. When undefined, it is expected that an extension or other mechanism will supply an alternate texture source, otherwise behavior is undefined.
 	Source interface{} `json:"source,omitempty"`

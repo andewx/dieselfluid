@@ -21,7 +21,7 @@ func InitMesh(vertices []vector.Vec, origin vector.Vec) Mesh {
 	index := 0
 	//Makes the normals from triangle vertices - We would like all normals to be inward
 	//Default Point towards zero vec
-	for i := 0; i < len(vertices); i += 3 {
+	for i := 0; i < len(vertices)-3; i += 3 {
 		thisTriangle := T.InitTriangle(vertices[i], vertices[i+1], vertices[i+2])
 		n := thisTriangle.Normal()
 		v0 := vector.Sub(vertices[i], origin)
@@ -57,33 +57,22 @@ func (g *Mesh) Collision(P vector.Vec, V vector.Vec, dt float64, r float32) (vec
 }
 
 //Generates particles in world space given the world space triangles
-func (g *Mesh) GenerateBoundaryParticles(density float32, tri_list []T.Triangle) [][3]float32 {
-	d_step := 1 / density
+func (g *Mesh) GenerateBoundaryParticles(density float32) []float32 {
 
-	num_particles := int(density*density) * len(tri_list)
-	particle_list := make([][3]float32, num_particles)
-	particle_index := 0
+	num_particles := len(g.Vertexes)
 
-	for index := 0; index < len(tri_list); index++ {
+	particle_list := make([]float32, num_particles*3)
 
-		tri := tri_list[index]
-		v0 := vector.Sub(*tri.Verts[0], *tri.Verts[1])
-		v1 := vector.Sub(*tri.Verts[0], *tri.Verts[2])
-
-		for u := float32(0); u < float32(1.0); u += d_step {
-			for v := float32(0); v < float32(1.0); v += d_step {
-				s0 := vector.Scale(v0, u)
-				s1 := vector.Scale(v1, v)
-				p0 := vector.Add(s0, s1)
-				pK := [3]float32{p0[0], p0[1], p0[2]}
-				particle_list[particle_index] = pK
-				particle_index++
-			}
+	for index := 0; index < len(g.Vertexes); index++ {
+		p0 := g.Vertexes[index]
+		x := index * 3
+		if x < len(particle_list)-3 {
+			particle_list[x] = p0[0]
+			particle_list[x+1] = p0[1]
+			particle_list[x+2] = p0[2]
 		}
 	}
-
 	return particle_list
-
 }
 
 func (g *Mesh) PrintNormals() {

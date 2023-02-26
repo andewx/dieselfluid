@@ -165,14 +165,14 @@ func LogVecError(vec Vec, op string) Vec {
 //Add sums each element index against the other vector a stores the result
 //in a new vector @DELEGATES
 func Add(a Vec, b Vec) Vec {
-	l := len(a)
-	g := len(b)
-	if len(b) < len(a) {
-		l = len(b)
-		g = len(a)
+	if len(a) == 0 || len(a) == 0 {
+		return Vec{0, 0, 0}
 	}
-	c := make([]float32, g)
-	for i := 0; i < l; i++ {
+	if len(a) != len(b) {
+		return Vec{0, 0, 0}
+	}
+	c := make([]float32, len(b))
+	for i := 0; i < len(b); i++ {
 		c[i] = a[i] + b[i]
 	}
 	return c
@@ -181,14 +181,14 @@ func Add(a Vec, b Vec) Vec {
 //Add sums each element index against the other vector a stores the result
 //in a new vector @DELEGATES
 func (a Vec) Add(b Vec) Vec {
-	l := len(a)
-	g := len(b)
-	if len(b) < len(a) {
-		l = len(b)
-		g = len(a)
+	if len(a) == 0 || len(a) == 0 {
+		return Vec{0, 0, 0}
 	}
-	c := make([]float32, g)
-	for i := 0; i < l; i++ {
+	if len(a) != len(b) {
+		return Vec{0, 0, 0}
+	}
+	c := make([]float32, len(b))
+	for i := 0; i < len(b); i++ {
 		c[i] = a[i] + b[i]
 	}
 	return c
@@ -197,21 +197,42 @@ func (a Vec) Add(b Vec) Vec {
 //Sub subtracts the vector b minus a utilizing the same add functions
 //above. @NONMUTATE
 func Sub(b Vec, a Vec) Vec {
+	if len(a) == 0 || len(a) == 0 {
+		return Vec{0, 0, 0}
+	}
+	if len(a) != len(b) {
+		return Vec{0, 0, 0}
+	}
 	return Add(b, Scale(a, -1.0))
 }
 
 //Sub subtracts the vector b minus a utilizing the same add functions
 //above. @NONMUTATE
 func (b Vec) Sub(a Vec) Vec {
+	if len(a) == 0 || len(a) == 0 {
+		return Vec{0, 0, 0}
+	}
+	if len(a) != len(b) {
+		return Vec{0, 0, 0}
+	}
 	return Add(b, Scale(a, -1.0))
 }
 
 func (b Vec) Mul(a Vec) Vec {
+	if len(a) == 0 || len(a) == 0 {
+		return Vec{0, 0, 0}
+	}
+	if len(a) != len(b) {
+		return Vec{0, 0, 0}
+	}
 	return Vec{a[0] * b[0], a[1] * b[1], a[2] * b[2]}
 }
 
 //Scl scales vector kX this function does not mutate the current vector
 func Scale(a Vec, k float32) Vec {
+	if len(a) == 0 {
+		return Vec{0, 0, 0}
+	}
 	c := make([]float32, len(a))
 	for i := 0; i < a.Dim(); i++ {
 		c[i] = a[i] * k
@@ -231,6 +252,9 @@ func ScaleVar(a Vec, b Vec) Vec {
 //Scale scales vector kX this function does not mutate the current vector
 //@NONMUTATE function Scale
 func (a Vec) Scale(k float32) Vec {
+	if len(a) == 0 {
+		return Vec{0, 0, 0}
+	}
 	c := make([]float32, len(a))
 	for i := 0; i < a.Dim(); i++ {
 		c[i] = a[i] * k
@@ -242,6 +266,12 @@ func (a Vec) Scale(k float32) Vec {
 //Dot computes the dot product as in a.Dot(b) where the resulting value should return
 //a scalar value representative of the ||a|||b||Cos() theta angle between two non-parallel vectors
 func Dot(a Vec, b Vec) float32 {
+	if len(a) == 0 || len(a) == 0 {
+		return 0
+	}
+	if len(a) != len(b) {
+		return 0
+	}
 	return a[0]*b[0] + a[1]*b[1] + a[2]*b[2]
 }
 

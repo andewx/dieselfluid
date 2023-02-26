@@ -2,14 +2,15 @@ package scene
 
 import (
 	"fmt"
+	"testing"
+
 	"github.com/andewx/dieselfluid/common"
 	"github.com/go-gl/gl/v4.1-core/gl"
-	"testing"
 )
 
 func TestGLTFImport(t *testing.T) {
 
-	myScene, err := InitScene(common.ProjectRelativePath("data/"), "MaterialSphere.gltf")
+	myScene, err := InitScene(common.ProjectRelativePath("data/meshes/materialsphere/MaterialSphere.gltf"))
 
 	if err != nil {
 		fmt.Printf("Failed to load GLTF file from %s\n", myScene.Filepath)

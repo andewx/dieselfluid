@@ -1,9 +1,14 @@
 package scene //dslfluid.com/dsl/render
 
-import "io/ioutil"
-import "log"
-import "github.com/andewx/dieselfluid/gltf"
-import "fmt"
+import (
+	"fmt"
+	"io/ioutil"
+	"log"
+	"strings"
+
+	"github.com/andewx/dieselfluid/common"
+	"github.com/andewx/dieselfluid/gltf"
+)
 
 /* dslfluid scenes are handled and managed by their GLTF Schema */
 
@@ -18,11 +23,13 @@ type Scene struct {
 }
 
 //InitScene Creates empty Scene struct
-func InitScene(base string, filepath string) (Scene, error) {
-	scn := Scene{&gltf.GlTF{}, filepath, nil, base}
+func InitScene(filepath string) (Scene, error) {
+	scn := Scene{}
+	scn.Root = &gltf.GlTF{}
+	scn.Filepath = filepath
+	scn.BaseURI = strings.Clone(common.Cd(filepath) + "/")
 	err := scn.ImportGLTF()
 	return scn, err
-
 }
 
 /*
@@ -31,7 +38,7 @@ for the scene such as the camera and Buffers
 */
 func (scene *Scene) ImportGLTF() error {
 
-	content, err := ioutil.ReadFile(scene.BaseURI + scene.Filepath)
+	content, err := ioutil.ReadFile(scene.Filepath)
 	if err != nil {
 		fmt.Printf("Unable to load GLTF File\n")
 		log.Fatal(err)
@@ -49,7 +56,7 @@ func (scene *Scene) ImportGLTF() error {
 	for i := 0; i < len(buffers); i++ {
 		uri := buffers[i].Uri
 		bLength := buffers[i].ByteLength
-		bErr := scene.LoadURIBuffer(uri, i, bLength) //Need specify if URI is absolute or relative or deconstruct filepath
+		bErr := scene.LoadURIBuffer(scene.BaseURI+uri, i, bLength) //Need specify if URI is absolute or relative or deconstruct filepath
 		if bErr != nil {
 			fmt.Printf("Unable to load Buffer URI\n")
 			return fmt.Errorf("Unable to load Buffer URI\nError Message %s", bErr.Error())
@@ -69,8 +76,7 @@ func (scene *Scene) ImportGLTF() error {
 }
 
 func (scene *Scene) LoadURIBuffer(uri string, bufferIndex int, bufferLength int) error {
-
-	content, err := ioutil.ReadFile(scene.BaseURI + uri)
+	content, err := ioutil.ReadFile(uri)
 	if err != nil {
 		fmt.Printf("Buffer URI Unavailable\n")
 		return fmt.Errorf("Buffer unavailable, check URI\n")
@@ -95,7 +101,7 @@ func (scene *Scene) ExportGLTF() error {
 		log.Fatal(err)
 	}
 
-	ioutil.WriteFile(scene.BaseURI+scene.Filepath, content, 0666)
+	ioutil.WriteFile(scene.BaseURI+"/"+scene.Filepath, content, 0666)
 
 	//Write Buffers / Images
 	return nil

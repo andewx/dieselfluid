@@ -14,4 +14,5 @@ type Sampler interface {
 	GetBuckets() int
 	BucketSize() int
 	GetData1D() []int
+	GetSamplesFromPosition(pos []float32) []int
 }

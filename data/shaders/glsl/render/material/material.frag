@@ -27,10 +27,11 @@ uniform samplerCube cube;
 
 
 #define PI 3.1415926
+#define FRESNEL_GOLD (1.0002 - 0.273)/(1.0002+0.273)
 
 
 // simple blinn specular calculation with normalization
-vec3 blinn_specular(in float NdH, in vec3 specular, in float roughness)
+vec3 blinn_specular(in float NdH,in  vec3 specular,in float roughness)
 {
     float k = 1.999 / (roughness * roughness);
 
@@ -47,7 +48,7 @@ float phong_diffuse()
 // product could be NdV or VdH depending on used technique
 float fresnel_factor(in float f0, in float ndv)
 {
-    return f0 + (1-f0)*pow(1-ndv,5.0);
+      return f0 + (1-f0)*pow(1-ndv,5.0);
 }
 
 //---------------------------------------------
@@ -55,7 +56,7 @@ float fresnel_factor(in float f0, in float ndv)
 //---------------------------------------------
 
 //Blinn roughness distribution
-float D_blinn(in float roughness, in float NdH)
+float D_blinn(in float roughness,in float NdH)
 {
     float m = roughness * roughness;
     float m2 = m * m;
@@ -64,7 +65,7 @@ float D_blinn(in float roughness, in float NdH)
 }
 
 //Returns normalized distribution parameter for NdH calc
-float D_beckmann(in float roughness, in float NdH)
+float D_beckmann(in float roughness,in float NdH)
 {
     float m = roughness * roughness;
     float m2 = m * m;
@@ -73,7 +74,7 @@ float D_beckmann(in float roughness, in float NdH)
 }
 
 //Returns normalized distribution for NdH
-float D_CGX(in float roughness, in float NdH)
+float D_CGX(in float roughness,in  float NdH)
 {
     float m = roughness * roughness;
     float m2 = m * m;
@@ -84,7 +85,7 @@ float D_CGX(in float roughness, in float NdH)
 
 
 //Returns schlick G() scaling parameter
-float G_schlick(in float roughness, in float NdV, in float NdL)
+float G_schlick(in float roughness,in float NdV,in float NdL)
 {
     float k = roughness * roughness * 0.5;
     float V = NdV * (1.0 - k) + k;
@@ -94,7 +95,7 @@ float G_schlick(in float roughness, in float NdV, in float NdL)
 
 
 //Geometric Attenutation term
-float G_term(in float HdN, in float VdN, in float VdH, in float LdN, in float rough){
+float G_term(in float HdN,in float VdN, in float VdH,in float LdN,in float rough){
   float m3 = rough*rough;
   float a = 2*HdN*VdN*m3;
   float b = 2*HdN*LdN*m3;
@@ -104,7 +105,7 @@ float G_term(in float HdN, in float VdN, in float VdH, in float LdN, in float ro
 
 
 // simple phong specular calculation with normalization
-vec3 phong_specular(in vec3 V, in vec3 L, in vec3 N, in vec3 specular, in float roughness)
+vec3 phong_specular(in vec3 V,in vec3 L,in vec3 N,in vec3 specular, float roughness)
 {
     vec3 R = reflect(-L, N);
     float spec = max(0.0, dot(V, R));
@@ -115,6 +116,7 @@ vec3 phong_specular(in vec3 V, in vec3 L, in vec3 N, in vec3 specular, in float 
 }
 
 
+// cook-torrance specular calculation                      
 // cook-torrance specular calculation
 float cooktorrance_specular(in float HdN, in float VdN, in float VdH, in float LdN, in float NdH, in float NdV, in float NdL, in float roughness, in float F)
 {
@@ -128,7 +130,7 @@ float cooktorrance_specular(in float HdN, in float VdN, in float VdH, in float L
 //coordinates from shader code. Ultimately TBN Matrixes should be handled by
 //application software host so the shader routines don't have to sample each pixel
 //so many times
-mat3 tbn_matrix( vec3 N, vec3 P, vec2 UV )
+mat3 tbn_matrix(in vec3 N,in vec3 P,in vec2 UV )
 {
     // Calcuate Point Curve Deltas and UV direction deltas
     vec3 deltaPos1 =    dFdx(P);
@@ -147,7 +149,7 @@ mat3 tbn_matrix( vec3 N, vec3 P, vec2 UV )
     return transpose(tbn);
 }
 
-mat3 cotangent_frame( vec3 N, vec3 p, vec2 uv )
+mat3 cotangent_frame(in vec3 N, in vec3 p, in vec2 uv )
 {
     // get edge vectors of the pixel triangle
     vec3 dp1 = dFdx( p );
@@ -167,7 +169,7 @@ mat3 cotangent_frame( vec3 N, vec3 p, vec2 uv )
 }
 
 //normal mapping function returns perturbed normal according to TBN matrix value
-vec3 normal_map( vec3 N, vec3 V, vec2 uv)
+vec3 normal_map(in vec3 N,in vec3 V,in vec2 uv)
 {
     vec3 map = texture(normTex,uv).rgb*2.0-1.0;
     mat3 tbn = cotangent_frame(N,-V,uv);
@@ -180,7 +182,7 @@ void main() {
     vec3 l_pos0 = (view * vec4(lightPos,1.0)).xyz;
     float mL = 1/length(l_pos0);
     float mLE = length(l_pos0-eye);
-    float A = 1/(mLE*mL);
+    float A = 2.1;//(mLE*mL);
     // L, V, H vectors
     vec3 L = normalize(l_pos0 - eye);
     vec3 V = normalize(-eye);
@@ -201,8 +203,7 @@ void main() {
          rough = roughness;
     #endif
 
-    //Get specular highlight interpolation color
-    vec3 sp_color = mix(base*(1/rough), vec3(1.0), metallic);
+
 
     float NdL = max(0.0, dot(N, L));
     float NdV = max(0.001, dot(N, V));
@@ -220,38 +221,31 @@ void main() {
     /*--------------------------------------------------*/
 
     //Compute Specular Power
-    vec3 light_color = lightColor * A;
-    sp_color = light_color * sp_color;
+    vec3 sp_color = mix(base*(1-rough), vec3(1.0), metallic) * lightColor;
     float F0 = (1.0002 - 0.273)/(1.0002+0.273); //fresnel gold
     F0 *= F0;
     float fresnel = fresnel_factor(F0, VdN);
     float power = cooktorrance_specular(HdN,VdN,VdH, LdN, NdH, NdV,NdL,rough,fresnel);
     power = max(0.00,power);
     vec3 specular = vec3(power)*sp_color;
-    specular *= vec3(NdL);
+    specular *= specular;
 
     /*--------------------------------------------------*/
     //    Diffuse + Ambient
     /*--------------------------------------------------*/
     //Compute phong shading diffuse terms for single light source
 
-
-    vec3 lambert = light_color *phong_diffuse() * NdL;
-    vec3 refl_light = vec3(0);
-    vec3 diff_light = light_color * 0.1;
-
-    refl_light += specular;
-    diff_light += lambert;
+    float ka = 0.1;
+    float phong = length(lightColor) * NdL + ka;
 
     #ifdef USE_DIFFUSE_IRRADIANCE_MAP
         vec2 brdf = texture(diffuseTex, vec2(rough, 1.0 - NdV)).xy;
         vec3 spec = min(vec3(0.99), fresnel_factor(sp_color, NdV) * brdf.x + brdf.y);
-        refl_light += spec * envspec;
-        diff_light += envdiff * (1.0 / PI);
+        specular += spec * envspec;
+        phong += envdiff * (1.0 / PI);
     #endif
 
     vec3 cube_color = texture(cube,R).rgb;
-    float corr = clamp(0.0,1.0,(metallic-rough)/metallic);
-    vec3 res = (diff_light * base)+ refl_light + cube_color*corr*(1-rough);
+    vec3 res = mix(vec3(0.0), base, phong) + specular;
     fragColor = vec4(res,1.0);
 }

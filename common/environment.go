@@ -1,11 +1,13 @@
 package common
 
-import "os"
-import "strings"
-import "log"
-import "unsafe"
-import "reflect"
-import "fmt"
+import (
+	"fmt"
+	"log"
+	"os"
+	"reflect"
+	"strings"
+	"unsafe"
+)
 
 func GetProjectDir() string {
 	wd, err := os.Getwd()
@@ -15,13 +17,13 @@ func GetProjectDir() string {
 	paths := strings.Split(wd, "/")
 	i := 0
 	j := 0
-	for i = 0; i < len(paths); i++{
+	for i = 0; i < len(paths); i++ {
 		cur := paths[i]
-		if cur == "dieselfluid"{
-			if i < len(paths)-1{
-				j = i+1
+		if cur == "dieselfluid" {
+			if i < len(paths)-1 {
+				j = i + 1
 				break
-			}else{
+			} else {
 				j = i
 				break
 			}
@@ -35,7 +37,7 @@ func ProjectRelativePath(relative_path string) string {
 }
 
 //Linux Cd command
-func Cd(path string)string{
+func Cd(path string) string {
 	paths := strings.Split(path, "/")
 	return strings.Join(paths[0:len(paths)-1], "/")
 }

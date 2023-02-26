@@ -1,19 +1,21 @@
 package field
 
 import (
-	"github.com/andewx/dieselfluid/geom"
 	"github.com/andewx/dieselfluid/geom/grid"
+	"github.com/andewx/dieselfluid/geom/mesh"
 	"github.com/andewx/dieselfluid/kernel"
 	"github.com/andewx/dieselfluid/math/vector"
 	"github.com/andewx/dieselfluid/model"
-	"github.com/andewx/dieselfluid/sampler"
-	"math"
+	"github.com/andewx/dieselfluid/sampler/lsh"
 )
 
+const SAMPLES = 150
+
+//Manage SPH Field and Particle Field interactions
 type SPHField struct {
 	kern          kernel.Kernel
-	smplr         sampler.Sampler
-	particles     []model.Particle
+	smplr         *lsh.HashSampler
+	Particles     model.ParticleArray
 	fields        map[string]Field
 	tensor_fields map[string]TensorField
 	densities     DensityField
@@ -22,24 +24,19 @@ type SPHField struct {
 	forces        ForceField
 	divergence    Field
 	vort          Field
-	mass          float32
-	d0            float32
 }
 
-func InitSPH(parts []model.Particle, ref sampler.Sampler, kern kernel.Kernel, basis int) SPHField {
+func InitSPH(parts model.ParticleArray, ref *lsh.HashSampler, kern kernel.Kernel, basis int) SPHField {
 	mySPH := SPHField{}
 	mySPH.kern = kern
 	mySPH.smplr = ref
-	mySPH.particles = parts
-	mySPH.densities = DensityField{mySPH.particles}
-	mySPH.pressures = PressureField{mySPH.particles}
-	mySPH.velocities = VelocityField{mySPH.particles}
-	mySPH.forces = ForceField{mySPH.particles}
-	mySPH.mass = float32(1.0)
-	mySPH.d0 = float32(1000.0)
+	mySPH.Particles = parts
+	mySPH.densities = DensityField{mySPH.Particles}
+	mySPH.pressures = PressureField{mySPH.Particles}
+	mySPH.velocities = VelocityField{mySPH.Particles}
+	mySPH.forces = ForceField{mySPH.Particles}
 	mySPH.divergence = ScalarField{make([]float32, basis)}
 	mySPH.vort = ScalarField{make([]float32, basis)}
-
 	mySPH.fields = make(map[string]Field, 10)
 	mySPH.tensor_fields = make(map[string]TensorField, 10)
 	mySPH.fields["density"] = mySPH.densities
@@ -51,133 +48,145 @@ func InitSPH(parts []model.Particle, ref sampler.Sampler, kern kernel.Kernel, ba
 	return mySPH
 }
 
-func (p SPHField) Particles() []model.Particle {
-	return p.particles
+func (p *SPHField) Field() *SPHField {
+	return p
 }
 
-func (p SPHField) Field() *SPHField {
-	return &p
+func (p *SPHField) Mass() float32 {
+	return p.Particles.Mass()
 }
 
-func (p SPHField) Mass() float32 {
-	return p.mass
+func (p *SPHField) D0() float32 {
+	return p.Particles.D0()
 }
 
-func (p SPHField) D0() float32 {
-	return p.d0
-}
-
-func (p SPHField) Kernel() kernel.Kernel {
+func (p *SPHField) Kernel() kernel.Kernel {
 	return p.kern
 }
 
-func (p SPHField) GetKernelLength() float32 {
+func (p *SPHField) GetKernelLength() float32 {
 	return p.kern.H0()
 }
 
-func (p SPHField) GetFields() map[string]Field {
+func (p *SPHField) GetFields() map[string]Field {
 	return p.fields
 }
 
-func (p SPHField) BoundaryParticles(colliders []geom.Collider) {
+func (p *SPHField) BoundaryParticles(colliders []*mesh.Mesh) []float32 {
 	//Make the boundary Particles
-	colliders = colliders
+	var colliderPositions []float32
 	if colliders != nil {
 		for i := 0; i < len(colliders); i++ {
-			colliderPositions := colliders[i].GenerateBoundaryParticles(1 / p.GetKernelLength())
-			boundary_particles := make([]model.Particle, len(colliderPositions))
-			for i := 0; i < len(boundary_particles); i++ {
-				boundary_particles[i].SetPosition(vector.Cast(colliderPositions[i]))
-			}
-			//Append the implicit colliders
-			p.particles = append(p.particles, boundary_particles[:]...)
+			colliderPositions = colliders[i].GenerateBoundaryParticles(2.0)
+			p.Particles.AddBoundaryParticles(colliderPositions)
 		}
 	}
+	return colliderPositions
 }
 
-func (p SPHField) AlignWithGrid(mGrid grid.Grid) {
-	x := int(mGrid.DimXYZ[0])
-	y := int(mGrid.DimXYZ[1])
-	z := int(mGrid.DimXYZ[2])
+func (p *SPHField) AlignWithGrid(mGrid grid.Grid) {
+	x := int(mGrid.Div[0])
+	y := int(mGrid.Div[1])
+	z := int(mGrid.Div[2])
+	pos := p.Particles.Positions()
 	for i := 0; i < x; i++ {
 		for j := 0; j < y; j++ {
 			for k := 0; k < z; k++ {
 				nPos := mGrid.GridPosition(i, j, k)
 				id := mGrid.Index(i, j, k)
-				p.particles[id].SetPosition(nPos)
+				particle := p.Particles.Get(id)
+				particle.Position = vector.CastFixed(nPos)
+				idx := id * 3
+				if idx+2 < len(pos) {
+					pos[idx] = particle.Position[0]
+					pos[idx+1] = particle.Position[1]
+					pos[idx+2] = particle.Position[2]
+				}
 			}
 		}
 	}
 }
 
-func (p SPHField) GetTensorFields() map[string]TensorField {
+func (p *SPHField) GetTensorFields() map[string]TensorField {
 	return p.tensor_fields
 }
 
 //Sampler Nearest Neighbors Update
-func (p SPHField) NN() {
+func (p *SPHField) NN() {
 	p.smplr.UpdateSampler()
 }
 
-func (p SPHField) GetSampler() sampler.Sampler {
+func (p *SPHField) GetSampler() *lsh.HashSampler {
 	return p.smplr
 }
 
 //nterpolates a scalar field given a position giving a continuous field
-func (p SPHField) Interpolate(position []float32, field Field) float32 {
-	sampleList := p.smplr.GetRegionalSamples(p.smplr.Hash(vector.CastFixed(position)), 1)
+func (p *SPHField) Interpolate(position []float32, field Field) float32 {
+	sampleList := p.smplr.GetSamplesFromPosition(position)
 	sum := float32(0.0)
+	mass := p.Mass()
 	for i := 0; i < len(sampleList); i++ {
-		part := p.particles[sampleList[i]]
-		dist := vector.Dist(position, part.Position())
-		weight := p.mass / part.Density() * p.kern.F(dist)
+		part := p.Particles.Get(sampleList[i])
+		dist := vector.Dist(position, part.Position[:])
+		weight := mass / part.Density * p.kern.F(dist)
 		sum += weight * field.Value(sampleList[i])
 	}
 	return sum
 }
 
-//Interpolates a scalar field given a position giving a continuous field
-func (p SPHField) InterpolateVectors(position []float32, field TensorField) []float32 {
-	sampleList := p.smplr.GetRegionalSamples(p.smplr.Hash(vector.CastFixed(position)), 2)
-	sum := vector.Vec{0, 0, 0}
-	for i := 0; i < len(sampleList); i++ {
-		part := p.particles[sampleList[i]]
-		dist := vector.Dist(part.Position(), position)
-		weight := p.mass / part.Density() * p.kern.F(dist)
-		vector.Add(sum, vector.Scale(field.Value(sampleList[i]), weight))
-	}
-	return sum
-}
-
-//Density -- Computes density field for SPH Field
-func (p SPHField) Density(i int) {
-	sampleList := p.smplr.GetSamples(i)
-	weight := p.kern.W0()
+func (p *SPHField) DensityF(pos vector.Vec, positions []float32) float32 {
+	sampleList := p.smplr.GetSamplesFromPosition(pos)
+	density := p.kern.W0()
+	mass := p.Field().Mass()
 
 	for j := 0; j < len(sampleList); j++ {
 		pIndex := sampleList[j]
-		if i != pIndex {
-			dist := vector.Dist(p.particles[i].Position(), p.particles[pIndex].Position()) //Change to dist
-			weight += p.kern.F(dist)
+		if pIndex < p.Particles.Total() {
+
+			particle_j := p.Particles.Get(pIndex)
+			dist := vector.Dist(pos, particle_j.Position[:]) //Change to dist
+			density += mass * p.kern.F(dist)
 		}
 	}
-	p.particles[i].SetDensity(float32(p.mass * weight))
+	return density
+}
+
+//Density -- Computes density field for SPH Field - Boundary particle contribute to infinite density
+func (p *SPHField) Density(i int) {
+	sampleList := p.smplr.GetSamples(i)
+	density := float32(0)
+	particle := p.Particles.Get(i)
+	lenSample := len(sampleList)
+	mass := p.Field().Mass()
+	for j := 0; j < lenSample; j++ {
+		pIndex := sampleList[j]
+		if i != pIndex && pIndex < p.Particles.Total() {
+
+			particle_j := p.Particles.Get(pIndex)
+			dist := vector.Dist(particle.Position[:], particle_j.Position[:]) //Change to dist
+			density += mass * p.kern.F(dist)
+		}
+	}
+	particle.Density = density
+	p.Particles.Set(i, particle)
 }
 
 //Computes gradient vector at particle i given a scalar field
-func (p SPHField) Gradient(i int, field Field) []float32 {
+func (p *SPHField) Gradient(i int, field Field) []float32 {
 
 	samples := p.smplr.GetSamples(i)
-	dens := p.particles[i].Density()
 	F := float32(0.0)
-	mass := p.mass
-	accumGrad := vector.Vec{}
+	mass := p.Particles.Mass()
+	accumGrad := vector.Vec{0, 0, 0}
+	particle := p.Particles.Get(i)
+	dens := particle.Density
 
 	for j := 0; j < len(samples); j++ {
 		jIndex := samples[j]
 		if jIndex != i {
-			jDensity := p.particles[jIndex].Density()
-			dir := vector.Sub(p.particles[samples[j]].Position(), p.particles[i].Position())
+			particle_j := p.Particles.Get(jIndex)
+			jDensity := particle_j.Density
+			dir := vector.Sub(particle_j.Position[:], particle.Position[:])
 			dist := vector.Mag(dir)
 			dir = vector.Norm(dir)
 			grad := p.kern.Grad(float32(dist), dir)
@@ -191,18 +200,20 @@ func (p SPHField) Gradient(i int, field Field) []float32 {
 }
 
 //Computes the Divergence of a tensor field
-func (p SPHField) Div(i int, field TensorField) float32 {
+func (p *SPHField) Div(i int, field TensorField) float32 {
 
+	particle := p.Particles.Get(i)
 	samples := p.smplr.GetSamples(i)
 	div := float32(0.0)
-	mass := p.mass
+	mass := p.Mass()
 
 	//For all particle neighbors -- Non Symmetric
 	for j := 0; j < len(samples); j++ {
 		jIndex := samples[j]
 		if jIndex != i {
-			jDensity := p.particles[samples[j]].Density()
-			dir := vector.Sub(p.particles[samples[j]].Position(), p.particles[i].Position())
+			particle_j := p.Particles.Get(jIndex)
+			jDensity := particle_j.Density
+			dir := vector.Sub(particle_j.Position[:], particle.Position[:])
 			dist := vector.Mag(dir)
 			dir = vector.Norm(dir) //Normalize
 			grad := p.kern.Grad(dist, dir)
@@ -216,17 +227,20 @@ func (p SPHField) Div(i int, field TensorField) float32 {
 }
 
 //Computes a laplacian value at the particle i for the given scalar field
-func (p SPHField) Laplacian(i int, field Field) float32 {
+func (p *SPHField) Laplacian(i int, field Field) float32 {
 
+	particle := p.Particles.Get(i)
 	samples := p.smplr.GetSamples(i)
-	m := p.mass
+	m := p.Mass()
 	sum := float32(0.0)
 	//Conduct inner loop
 	for j := 0; j < len(samples); j++ {
+
 		jIndex := samples[j]
+		particle_j := p.Particles.Get(jIndex)
 		if jIndex != i {
-			jDensity := p.particles[samples[j]].Density()
-			dist := vector.Dist(p.particles[i].Position(), p.particles[samples[j]].Position())
+			jDensity := particle_j.Density
+			dist := vector.Dist(particle.Position[:], particle_j.Position[:])
 			sum += m * ((field.Value(samples[j]) - field.Value(i)) / jDensity) * p.kern.O2D(dist)
 		}
 	}
@@ -234,18 +248,20 @@ func (p SPHField) Laplacian(i int, field Field) float32 {
 }
 
 //Computes a laplacian value at the particle i for the given scalar field
-func (p SPHField) LaplacianForce(i int, field TensorField) []float32 {
+func (p *SPHField) LaplacianForce(i int, field TensorField) []float32 {
 
+	particle := p.Particles.Get(i)
 	samples := p.smplr.GetSamples(i)
-	m := p.mass
+	m := p.Mass()
 	force := vector.Vec{0, 0, 0}
 	//Conduct inner loop
 	for j := 0; j < len(samples); j++ {
 		jIndex := samples[j]
 		if jIndex != i {
-			jDensity := p.particles[samples[j]].Density()
-			v := vector.Scale(vector.Sub(p.particles[samples[j]].Velocity(), p.particles[i].Velocity()), 1/jDensity)
-			dist := vector.Dist(p.particles[i].Position(), p.particles[samples[j]].Position())
+			particle_j := p.Particles.Get(jIndex)
+			jDensity := particle_j.Density
+			v := vector.Scale(vector.Sub(particle_j.Velocity[:], particle.Velocity[:]), 1/jDensity)
+			dist := vector.Dist(particle.Position[:], particle_j.Position[:])
 			force = force.Add(v.Scale(p.kern.O2D(dist))).Scale(m)
 		}
 	}
@@ -253,18 +269,20 @@ func (p SPHField) LaplacianForce(i int, field TensorField) []float32 {
 }
 
 //Curl computes non-symmetric curl
-func (p SPHField) Curl(i int, field TensorField) []float32 {
+func (p *SPHField) Curl(i int, field TensorField) []float32 {
 
+	particle := p.Particles.Get(i)
 	samples := p.smplr.GetSamples(i)
-	curl_vec := vector.Vec{}
-	mass := p.mass
+	curl_vec := vector.Vec{0, 0, 0}
+	mass := p.Mass()
 
 	//For all particle neighbors
 	for j := 0; j < len(samples); j++ {
 		jIndex := samples[j]
 		if jIndex != i {
-			jDensity := p.particles[samples[j]].Density()
-			dir := vector.Sub(p.particles[samples[j]].Position(), p.particles[i].Position())
+			particle_j := p.Particles.Get(jIndex)
+			jDensity := particle_j.Density
+			dir := vector.Sub(particle_j.Position[:], particle.Position[:])
 			dist := vector.Mag(dir)
 			dir = vector.Norm(dir) //Normalize
 			grad := p.kern.Grad(dist, dir)
@@ -273,38 +291,4 @@ func (p SPHField) Curl(i int, field TensorField) []float32 {
 		}
 	} //End J
 	return curl_vec
-}
-
-//EOSGamma() - Full Tait Equation of State for Water like incrompressible fluids where
-//gamma maps the stiffess parameter of the fluid with suggested values in the 6.0-7.0 range
-//@param x - density input
-//@param c0 - Speed of sound & reference pressure relation (2.15)gpa
-//@param d0 - Reference density (1000)kg/m^3 or (1.0g/cm^3)
-//@param gamma - Stifness parameter (7.15)
-//@param p0 - reference pressure for the system (101,325)
-//@notes The reference speed of sound c0 is sometimes taken to be approximately 10 times the maximum
-//expected velocity for the system
-
-func (p SPHField) EOSGamma(x float32, c0 float32, d0 float32, gamma float32, p0 float32) float32 {
-	return (c0/gamma)*float32(math.Pow(float64(x/d0), float64(gamma))-1) + p0
-}
-
-//EOS() - Tait Equation of State for Water like incrompressible fluids where
-//gamma maps the stiffess parameter of the fluid with suggested values in the 6.0-7.0 range
-//@param x - density input
-//@param c0 - Speed of sound & reference pressure relation (2.15)gpa
-//@param d0 - Reference density (1000)kg/m^3 or (1.0g/cm^3)
-//@param gamma - Stifness parameter
-//@param p0 - reference pressure for the system (101325 pa) or 1013.25hPA
-//@notes The reference speed of sound c0 is taken to be approximately 10 times the maximum
-//expected velocity for the system if
-func (p SPHField) TaitEOS(x float32, p0 float32) float32 {
-	g := float32(7.16)
-	w := float32(2.15)
-	d0 := p.d0
-	y := (w/g)*float32(math.Pow(float64(x/d0), float64(g))-1) + p0
-	if y <= p0 {
-		return p0
-	}
-	return y
 }
